@@ -1,4 +1,4 @@
-﻿name: Mobile CI
+name: Mobile CI
 
 on:
   pull_request:
@@ -40,7 +40,7 @@ jobs:
         run: npm run test
 
   build-apk:
-    name: Build APK (debug)
+    name: Build APK (release)
     runs-on: ubuntu-latest
     needs: test
     # Ne tourne que sur push vers main (après merge), pas sur PR
@@ -71,13 +71,17 @@ jobs:
         working-directory: mobile
         run: npx expo prebuild --platform android --no-install
 
-      - name: Build debug APK
+      - name: Configure release signing
         working-directory: mobile/android
-        run: ./gradlew assembleDebug
+        run: sed -i 's/release {/release {\n            signingConfig signingConfigs.debug/' app/build.gradle
+
+      - name: Build release APK
+        working-directory: mobile/android
+        run: ./gradlew assembleRelease
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-${{ github.sha }}
-          path: mobile/android/app/build/outputs/apk/debug/app-debug.apk
+          name: app-release-${{ github.sha }}
+          path: mobile/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
