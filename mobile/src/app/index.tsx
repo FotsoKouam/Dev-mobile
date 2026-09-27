@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { WebBadge } from '@/components/web-badge';
 import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { useBackendStatus } from '@/hooks/use-backend-status';
 
 function getDevMenuHint() {
   if (Platform.OS === 'web') {
@@ -29,6 +30,8 @@ function getDevMenuHint() {
 }
 
 export default function HomeScreen() {
+  const backend = useBackendStatus();
+
   return (
     <ThemedView style={styles.container}>
       <SafeAreaView style={styles.safeArea}>
@@ -44,6 +47,18 @@ export default function HomeScreen() {
         </ThemedText>
 
         <ThemedView type="backgroundElement" style={styles.stepContainer}>
+          <HintRow
+            title="Backend API"
+            hint={
+              <ThemedText type="code">
+                {backend.loading
+                  ? 'Connecting...'
+                  : backend.error
+                  ? `Error (${backend.error})`
+                  : `${backend.message ?? 'OK'}`}
+              </ThemedText>
+            }
+          />
           <HintRow
             title="Try editing"
             hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
