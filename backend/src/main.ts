@@ -1,8 +1,43 @@
 import { NestFactory } from '@nestjs/core';
+import { DataSource } from 'typeorm';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { AppModule } from './app.module.js';
 
+// Charger les variables d'environnement depuis backend/.env si présent
+const envPath = resolve(process.cwd(), '.env');
+if (existsSync(envPath)) {
+  process.loadEnvFile(envPath);
+}
+
+// Validation au démarrage : DATABASE_URL obligatoire et non vide
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl || databaseUrl.trim() === '') {
+  console.error('DATABASE_URL est manquante : voir backend/.env.example');
+  process.exit(1);
+}
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  let app;
+  try {
+    app = await NestFactory.create(AppModule);
+  } catch (error) {
+    let raw = '';
+    if (error instanceof Error) {
+      raw = error.message || (error as { code?: string }).code || error.name;
+    } else {
+      raw = String(error);
+    }
+    const safe = raw.replace(/postgres(ql)?:\/\/[^\s]+/gi, '<DATABASE_URL>');
+    console.error(`Échec de connexion à la base de données : ${safe}`);
+    process.exit(1);
+  }
+
+  // Vérifier et afficher la connexion à la base de données
+  const dataSource = app.get(DataSource, { strict: false });
+  if (dataSource?.isInitialized) {
+    console.log('Base de données connectée');
+  }
 
   // Allow web clients (Angular) to call this backend from their origin.
   // Mobile (React Native) is not subject to CORS restrictions.
@@ -13,6 +48,7 @@ async function bootstrap() {
     ],
   });
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = process.env.PORT ?? 3000;
+  await app.listen(port);
 }
 await bootstrap();

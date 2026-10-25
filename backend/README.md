@@ -31,6 +31,49 @@
 $ npm install
 ```
 
+## Base de données
+
+La connexion à la base de données PostgreSQL est configurée via TypeORM.
+
+### Variables d'environnement
+
+Créer un fichier `.env` dans `backend/` (basé sur `.env.example`) avec les trois variables suivantes :
+
+| Variable | Rôle | Valeur par défaut / Exemple |
+|---|---|---|
+| `DATABASE_URL` | URL complète de connexion à PostgreSQL | *À définir par le développeur* |
+| `DATABASE_SSL` | Activation de SSL (`true` ou `false`) | `false` |
+| `PORT` | Port d'écoute du serveur HTTP | `3000` |
+
+> **Règle de sécurité absolue :** L'URL de connexion réelle contient des identifiants sensibles. Elle ne doit **jamais être committée dans Git**, ni dans le code, ni dans les tests, ni dans les messages. Le fichier `backend/.env` est strictement ignoré par Git.
+
+### Options d'utilisation
+
+1. **Base locale Docker (PostgreSQL 16 + pgvector)** :
+   - Démarrer la base : `docker compose up -d` (à la racine du dépôt)
+   - Configuration dans `.env` :
+     ```env
+     DATABASE_URL=postgresql://postgres:postgres@localhost:5432/rag_db
+     DATABASE_SSL=false
+     ```
+   - Arrêter la base en conservant les données : `docker compose down`
+   - Supprimer le conteneur et son volume : `docker compose down -v`
+
+2. **Base hébergée (ex: Neon avec SSL)** :
+   - Configuration dans `.env` :
+     ```env
+     DATABASE_URL=postgresql://<utilisateur>:<motdepasse>@<hote>:5432/<nom_de_la_base>
+     DATABASE_SSL=true
+     ```
+
+### Vérification de la connexion
+
+Pour vérifier la connectivité à PostgreSQL sans démarrer le serveur :
+```bash
+npm run db:check
+```
+Cette commande exécute uniquement `SELECT version();` et affiche « Connexion OK » ainsi que la version du serveur PostgreSQL.
+
 ## Compile and run the project
 
 ```bash
