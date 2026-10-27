@@ -1,4 +1,6 @@
 import { NestFactory } from '@nestjs/core';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -33,11 +35,34 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  // Préfixe global api, en excluant la route racine GET /
+  app.setGlobalPrefix('api', {
+    exclude: [{ path: '/', method: RequestMethod.GET }],
+  });
+
+  // ValidationPipe global
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
   // Vérifier et afficher la connexion à la base de données
   const dataSource = app.get(DataSource, { strict: false });
   if (dataSource?.isInitialized) {
     console.log('Base de données connectée');
   }
+
+  // Swagger sur /api/docs
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('RAG Platform API')
+    .setDescription('Documentation de l API pour le socle backend (Écoles et Filières)')
+    .setVersion('1.0')
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
 
   // Allow web clients (Angular) to call this backend from their origin.
   // Mobile (React Native) is not subject to CORS restrictions.
