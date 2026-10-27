@@ -97,6 +97,7 @@ L'architecture est imposée par le cahier des charges (§6 et §10) : architectu
 - Chaque table a `id`, `created_at`, `updated_at`.
 - Les données de départ (les 5 rôles système, les permissions) sont créées par un script de *seed* versionné, pas à la main.
 - La connexion se fait avec la variable `DATABASE_URL`.
+- **Toute propriété qui référence une autre entité est typée avec `Relation<>`** (importé depuis `typeorm` via `import type { Relation } from 'typeorm'`). Exemple : `school: Relation<School>`, `programs: Relation<Program[]>`. Cela évite l'erreur `ReferenceError: Cannot access '...' before initialization` causée par les imports circulaires entre entités sous Node 24 / ESM avec `emitDecoratorMetadata`. L'import `type` est obligatoire car `isolatedModules: true` interdit de mélanger des valeurs runtime et des types dans le même import (TS1272).
 
 ---
 

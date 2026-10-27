@@ -1,6 +1,8 @@
 import { Controller, Get } from '@nestjs/common';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { AppService } from './app.service.js';
 
+@ApiTags('health')
 @Controller()
 export class AppController {
   constructor(private readonly appService: AppService) {}
@@ -9,5 +11,18 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  @Get('health')
+  @ApiOperation({ summary: 'Vérifier la santé du backend' })
+  @ApiOkResponse({
+    schema: {
+      type: 'object',
+      properties: {
+        status: { type: 'string', example: 'ok' },
+      },
+    },
+  })
+  getHealth(): { status: string } {
+    return { status: 'ok' };
+  }
 }
-// ci trigger
