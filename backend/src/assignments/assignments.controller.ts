@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBadRequestResponse,
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -25,14 +26,16 @@ import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { QueryAssignmentDto } from './dto/query-assignment.dto.js';
 import { AssignmentResponseDto } from './dto/assignment-response.dto.js';
 import { PaginatedResponseDto } from '../common/dto/pagination.dto.js';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator.js';
 
-// TODO(auth): Add authentication and authorization guards when auth module is implemented
 @ApiTags('assignments')
+@ApiBearerAuth()
 @Controller('assignments')
 export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
 
   @Get()
+  @RequirePermissions('manage_assignments')
   @ApiOperation({ summary: 'Lister les affectations avec pagination et filtres' })
   @ApiOkResponse({ description: 'Liste paginée des affectations' })
   async findAll(
@@ -42,6 +45,7 @@ export class AssignmentsController {
   }
 
   @Post()
+  @RequirePermissions('manage_assignments')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer une affectation' })
   @ApiResponse({ status: 201, type: AssignmentResponseDto, description: 'Affectation créée' })
@@ -52,6 +56,7 @@ export class AssignmentsController {
   }
 
   @Get(':id')
+  @RequirePermissions('manage_assignments')
   @ApiOperation({ summary: 'Obtenir le détail d une affectation' })
   @ApiOkResponse({ type: AssignmentResponseDto })
   @ApiNotFoundResponse({ description: 'Affectation introuvable' })
@@ -60,6 +65,7 @@ export class AssignmentsController {
   }
 
   @Patch(':id')
+  @RequirePermissions('manage_assignments')
   @ApiOperation({ summary: 'Modifier une affectation' })
   @ApiOkResponse({ type: AssignmentResponseDto })
   @ApiBadRequestResponse({ description: 'Incohérence rôle / école / filière' })
@@ -72,6 +78,7 @@ export class AssignmentsController {
   }
 
   @Patch(':id/deactivate')
+  @RequirePermissions('manage_assignments')
   @ApiOperation({ summary: 'Désactiver une affectation (status: inactive)' })
   @ApiOkResponse({ type: AssignmentResponseDto })
   @ApiNotFoundResponse({ description: 'Affectation introuvable' })

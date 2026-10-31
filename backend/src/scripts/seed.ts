@@ -1,6 +1,7 @@
 import pg from 'pg';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import * as argon2 from 'argon2';
 
 // 1. Charger .env si présent
 const envPath = resolve(process.cwd(), '.env');
@@ -247,6 +248,13 @@ const usersData: SeedUser[] = [
 
 async function seed() {
   try {
+    // Vérification de ADMIN_SEED_PASSWORD pour les comptes password
+    const adminSeedPassword = process.env.ADMIN_SEED_PASSWORD;
+    if (!adminSeedPassword || adminSeedPassword.trim() === '') {
+      console.error('ADMIN_SEED_PASSWORD est manquante : voir backend/.env.example');
+      process.exit(1);
+    }
+
     await client.connect();
     console.log('Connexion à la base de données établie pour le seed.');
 
@@ -320,20 +328,41 @@ async function seed() {
     let processedUsers = 0;
     let processedAssignments = 0;
 
+    const adminHashedPassword = await argon2.hash(adminSeedPassword);
+
     for (const u of usersData) {
-      const userRes = await client.query<{ id: string }>(
-        `INSERT INTO users (email, first_name, last_name, auth_method, status)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (email) DO UPDATE
-           SET first_name = EXCLUDED.first_name,
-               last_name = EXCLUDED.last_name,
-               status = EXCLUDED.status,
-               auth_method = EXCLUDED.auth_method
-         RETURNING id;`,
-        [u.email, u.firstName, u.lastName, u.authMethod, u.status],
+      // Pour les comptes avec authMethod password, renseigner password_hash si non existant
+      const existingUser = await client.query<{ id: string; password_hash: string | null }>(
+        `SELECT id, password_hash FROM users WHERE email = $1`,
+        [u.email],
       );
 
-      const userId = userRes.rows[0].id;
+      let userId: string;
+
+      if (existingUser.rows.length === 0) {
+        const passwordHashToInsert = u.authMethod === 'password' ? adminHashedPassword : null;
+        const userRes = await client.query<{ id: string }>(
+          `INSERT INTO users (email, first_name, last_name, auth_method, status, password_hash)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id;`,
+          [u.email, u.firstName, u.lastName, u.authMethod, u.status, passwordHashToInsert],
+        );
+        userId = userRes.rows[0].id;
+      } else {
+        userId = existingUser.rows[0].id;
+        // Si le compte password n'a pas encore de mot de passe, l'initialiser
+        if (u.authMethod === 'password' && !existingUser.rows[0].password_hash) {
+          await client.query(
+            `UPDATE users SET password_hash = $1 WHERE id = $2`,
+            [adminHashedPassword, userId],
+          );
+        }
+        await client.query(
+          `UPDATE users SET first_name = $1, last_name = $2, status = $3, auth_method = $4 WHERE id = $5`,
+          [u.firstName, u.lastName, u.status, u.authMethod, userId],
+        );
+      }
+
       processedUsers++;
 
       const roleId = roleIdByCode[u.roleCode];

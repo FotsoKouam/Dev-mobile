@@ -9,6 +9,7 @@ import { ProgramsModule } from './programs/programs.module.js';
 import { RolesModule } from './roles/roles.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AssignmentsModule } from './assignments/assignments.module.js';
+import { AuthModule } from './auth/auth.module.js';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { AssignmentsModule } from './assignments/assignments.module.js';
     RolesModule,
     UsersModule,
     AssignmentsModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

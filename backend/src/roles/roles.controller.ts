@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiForbiddenResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -24,14 +25,16 @@ import { UpdateRoleDto } from './dto/update-role.dto.js';
 import { QueryRoleDto } from './dto/query-role.dto.js';
 import { RoleResponseDto } from './dto/role-response.dto.js';
 import { PaginatedResponseDto } from '../common/dto/pagination.dto.js';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator.js';
 
-// TODO(auth): Add authentication and authorization guards when auth module is implemented
 @ApiTags('roles')
+@ApiBearerAuth()
 @Controller('roles')
 export class RolesController {
   constructor(private readonly rolesService: RolesService) {}
 
   @Get()
+  @RequirePermissions('manage_roles')
   @ApiOperation({ summary: 'Lister les rôles avec pagination et filtres' })
   @ApiOkResponse({ description: 'Liste paginée des rôles' })
   async findAll(@Query() query: QueryRoleDto): Promise<PaginatedResponseDto<RoleResponseDto>> {
@@ -39,6 +42,7 @@ export class RolesController {
   }
 
   @Post()
+  @RequirePermissions('manage_roles')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Créer un rôle personnalisé' })
   @ApiResponse({ status: 201, type: RoleResponseDto, description: 'Rôle créé' })
@@ -47,6 +51,7 @@ export class RolesController {
   }
 
   @Get(':id')
+  @RequirePermissions('manage_roles')
   @ApiOperation({ summary: 'Obtenir le détail d un rôle avec ses permissions' })
   @ApiOkResponse({ type: RoleResponseDto })
   @ApiNotFoundResponse({ description: 'Rôle introuvable' })
@@ -55,6 +60,7 @@ export class RolesController {
   }
 
   @Patch(':id')
+  @RequirePermissions('manage_roles')
   @ApiOperation({ summary: 'Modifier un rôle personnalisé' })
   @ApiOkResponse({ type: RoleResponseDto })
   @ApiNotFoundResponse({ description: 'Rôle introuvable' })

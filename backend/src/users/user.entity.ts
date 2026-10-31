@@ -22,13 +22,12 @@ export class User extends BaseEntity {
   @Column({ type: 'enum', enum: AuthMethod })
   authMethod: AuthMethod;
 
+  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
+  passwordHash?: string | null;
+
   @Column({ type: 'enum', enum: UserStatus, default: UserStatus.INVITED })
   status: UserStatus;
 
-  /**
-   * Dernière connexion — null tant que l'authentification n'est pas implémentée.
-   * TODO(auth): renseigner lors de la connexion.
-   */
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt?: Date | null;
 
