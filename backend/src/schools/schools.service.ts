@@ -1,7 +1,8 @@
 import {
-  ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,6 +16,7 @@ import { SchoolStatsResponseDto } from './dto/school-stats-response.dto.js';
 import { PaginatedResponseDto } from '../common/dto/pagination.dto.js';
 import { SchoolStatus } from './enums/school-status.enum.js';
 import { ProgramStatus } from '../programs/enums/program-status.enum.js';
+import { AuthenticatedUser } from '../auth/decorators/current-user.decorator.js';
 
 @Injectable()
 export class SchoolsService {
@@ -25,7 +27,31 @@ export class SchoolsService {
     private readonly programsRepository: Repository<Program>,
   ) {}
 
-  async getStats(): Promise<SchoolStatsResponseDto> {
+  async getStats(user?: AuthenticatedUser): Promise<SchoolStatsResponseDto> {
+    if (user && !user.isPlatformAdmin && user.schoolId) {
+      // Pour un school_admin, limiter les statistiques à son école
+      const activeSchools = await this.schoolsRepository.count({
+        where: { id: user.schoolId, status: SchoolStatus.ACTIVE },
+      });
+      const totalSchools = await this.schoolsRepository.count({
+        where: { id: user.schoolId },
+      });
+
+      const totalPrograms = await this.programsRepository.count({
+        where: { schoolId: user.schoolId },
+      });
+      const activePrograms = await this.programsRepository.count({
+        where: { schoolId: user.schoolId, status: ProgramStatus.ACTIVE },
+      });
+
+      return {
+        schools: { active: activeSchools, total: totalSchools },
+        programs: { active: activePrograms, total: totalPrograms },
+        users: { active: 0, total: 0 },
+        institutionalSpaces: { active: 0, total: 0 },
+      };
+    }
+
     const totalSchools = await this.schoolsRepository.count();
     const activeSchools = await this.schoolsRepository.count({
       where: { status: SchoolStatus.ACTIVE },
@@ -39,20 +65,26 @@ export class SchoolsService {
     return {
       schools: { active: activeSchools, total: totalSchools },
       programs: { active: activePrograms, total: totalPrograms },
-      // TODO: calculate from users module when implemented
       users: { active: 0, total: 0 },
-      // TODO: calculate from spaces module when implemented
       institutionalSpaces: { active: 0, total: 0 },
     };
   }
 
-  async findAll(query: QuerySchoolDto): Promise<PaginatedResponseDto<SchoolResponseDto>> {
+  async findAll(
+    query: QuerySchoolDto,
+    user?: AuthenticatedUser,
+  ): Promise<PaginatedResponseDto<SchoolResponseDto>> {
     const page = query.page && query.page > 0 ? query.page : 1;
     const limit = query.limit && query.limit > 0 ? Math.min(query.limit, 100) : 10;
 
     const qb = this.schoolsRepository
       .createQueryBuilder('school')
       .loadRelationCountAndMap('school.programsCount', 'school.programs');
+
+    // Périmètre school_admin
+    if (user && !user.isPlatformAdmin && user.schoolId) {
+      qb.andWhere('school.id = :scopedSchoolId', { scopedSchoolId: user.schoolId });
+    }
 
     if (query.status) {
       qb.andWhere('school.status = :status', { status: query.status });
@@ -79,7 +111,11 @@ export class SchoolsService {
     };
   }
 
-  async findOne(id: string): Promise<SchoolResponseDto> {
+  async findOne(id: string, user?: AuthenticatedUser): Promise<SchoolResponseDto> {
+    if (user && !user.isPlatformAdmin && user.schoolId && user.schoolId !== id) {
+      throw new ForbiddenException("Vous n'avez pas accès à cet établissement.");
+    }
+
     const school = await this.schoolsRepository
       .createQueryBuilder('school')
       .loadRelationCountAndMap('school.programsCount', 'school.programs')
@@ -93,7 +129,11 @@ export class SchoolsService {
     return this.toResponseDto(school);
   }
 
-  async create(dto: CreateSchoolDto): Promise<SchoolResponseDto> {
+  async create(dto: CreateSchoolDto, user?: AuthenticatedUser): Promise<SchoolResponseDto> {
+    if (user && !user.isPlatformAdmin) {
+      throw new ForbiddenException("Seul un administrateur plateforme peut créer une école.");
+    }
+
     const trimmedName = dto.name.trim();
 
     const existing = await this.schoolsRepository.findOne({
@@ -126,7 +166,11 @@ export class SchoolsService {
     }
   }
 
-  async update(id: string, dto: UpdateSchoolDto): Promise<SchoolResponseDto> {
+  async update(id: string, dto: UpdateSchoolDto, user?: AuthenticatedUser): Promise<SchoolResponseDto> {
+    if (user && !user.isPlatformAdmin && user.schoolId && user.schoolId !== id) {
+      throw new ForbiddenException("Vous ne pouvez modifier que votre propre établissement.");
+    }
+
     const school = await this.schoolsRepository.findOne({ where: { id } });
     if (!school) {
       throw new NotFoundException(`School with ID "${id}" not found`);
@@ -156,7 +200,7 @@ export class SchoolsService {
 
     try {
       await this.schoolsRepository.save(school);
-      return this.findOne(id);
+      return this.findOne(id, user);
     } catch (err: unknown) {
       if (typeof err === 'object' && err !== null && 'code' in err && (err as { code: string }).code === '23505') {
         throw new ConflictException(`School with name "${dto.name}" already exists`);
@@ -178,9 +222,7 @@ export class SchoolsService {
       mainLanguage: school.mainLanguage ?? 'fr',
       status: school.status,
       programsCount: programsCount ?? school.programsCount ?? 0,
-      // TODO: calculate from users module when implemented
       usersCount: 0,
-      // TODO: calculate from spaces module when implemented
       spacesCount: 0,
       createdAt: school.createdAt instanceof Date ? school.createdAt.toISOString() : String(school.createdAt),
       updatedAt: school.updatedAt instanceof Date ? school.updatedAt.toISOString() : String(school.updatedAt),

@@ -11,6 +11,7 @@ import {
   Query,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiConflictResponse,
   ApiNotFoundResponse,
   ApiOkResponse,
@@ -26,14 +27,16 @@ import { UserResponseDto } from './dto/user-response.dto.js';
 import { UserStatsResponseDto } from './dto/user-stats-response.dto.js';
 import { AccessibleSpaceScopeDto } from './dto/accessible-spaces-response.dto.js';
 import { PaginatedResponseDto } from '../common/dto/pagination.dto.js';
+import { RequirePermissions } from '../auth/decorators/require-permissions.decorator.js';
 
-// TODO(auth): Add authentication and authorization guards when auth module is implemented
 @ApiTags('users')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get('stats')
+  @RequirePermissions('manage_users')
   @ApiOperation({ summary: 'Obtenir les statistiques utilisateurs pour le tableau de bord' })
   @ApiOkResponse({ type: UserStatsResponseDto })
   async getStats(): Promise<UserStatsResponseDto> {
@@ -41,6 +44,7 @@ export class UsersController {
   }
 
   @Get()
+  @RequirePermissions('manage_users')
   @ApiOperation({ summary: 'Lister les utilisateurs avec pagination et filtres' })
   @ApiOkResponse({ description: 'Liste paginée des utilisateurs' })
   async findAll(@Query() query: QueryUserDto): Promise<PaginatedResponseDto<UserResponseDto>> {
@@ -48,6 +52,7 @@ export class UsersController {
   }
 
   @Post()
+  @RequirePermissions('manage_users')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Inviter un utilisateur' })
   @ApiResponse({ status: 201, type: UserResponseDto, description: 'Utilisateur créé/invité' })
@@ -57,6 +62,7 @@ export class UsersController {
   }
 
   @Get(':id')
+  @RequirePermissions('manage_users')
   @ApiOperation({ summary: 'Obtenir le détail d un utilisateur avec ses affectations' })
   @ApiOkResponse({ type: UserResponseDto })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
@@ -65,6 +71,7 @@ export class UsersController {
   }
 
   @Patch(':id')
+  @RequirePermissions('manage_users')
   @ApiOperation({ summary: 'Modifier ou changer le statut d un utilisateur' })
   @ApiOkResponse({ type: UserResponseDto })
   @ApiNotFoundResponse({ description: 'Utilisateur introuvable' })
@@ -76,6 +83,7 @@ export class UsersController {
   }
 
   @Get(':userId/accessible-spaces')
+  @RequirePermissions('manage_users')
   @ApiOperation({
     summary: 'Calculer le périmètre des espaces accessibles d un utilisateur',
     description:

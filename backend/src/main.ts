@@ -1,10 +1,13 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { DataSource } from 'typeorm';
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AppModule } from './app.module.js';
+import { JwtAuthGuard } from './auth/jwt-auth.guard.js';
+import { PermissionsGuard } from './auth/permissions.guard.js';
 
 // Charger les variables d'environnement depuis backend/.env si présent
 const envPath = resolve(process.cwd(), '.env');
@@ -35,6 +38,31 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  // Validation des variables d'environnement obligatoires via ConfigService
+  const configService = app.get(ConfigService);
+  const googleClientId = configService.get<string>('GOOGLE_CLIENT_ID');
+  if (!googleClientId || googleClientId.trim() === '') {
+    console.error('GOOGLE_CLIENT_ID est manquante ou vide : voir backend/.env.example');
+    process.exit(1);
+  }
+
+  const jwtAccessSecret = configService.get<string>('JWT_ACCESS_SECRET');
+  if (!jwtAccessSecret || jwtAccessSecret.trim() === '') {
+    console.error('JWT_ACCESS_SECRET est manquante ou vide : voir backend/.env.example');
+    process.exit(1);
+  }
+
+  const jwtRefreshSecret = configService.get<string>('JWT_REFRESH_SECRET');
+  if (!jwtRefreshSecret || jwtRefreshSecret.trim() === '') {
+    console.error('JWT_REFRESH_SECRET est manquante ou vide : voir backend/.env.example');
+    process.exit(1);
+  }
+
+  if (jwtAccessSecret === jwtRefreshSecret) {
+    console.error('JWT_ACCESS_SECRET et JWT_REFRESH_SECRET doivent être différents');
+    process.exit(1);
+  }
+
   // Préfixe global api, en excluant la route racine GET /
   app.setGlobalPrefix('api', {
     exclude: [{ path: '/', method: RequestMethod.GET }],
@@ -49,6 +77,10 @@ async function bootstrap() {
     }),
   );
 
+  // Gardes globales : JwtAuthGuard + PermissionsGuard
+  const reflector = app.get(Reflector);
+  app.useGlobalGuards(new JwtAuthGuard(reflector), new PermissionsGuard(reflector));
+
   // Vérifier et afficher la connexion à la base de données
   const dataSource = app.get(DataSource, { strict: false });
   if (dataSource?.isInitialized) {
@@ -58,8 +90,9 @@ async function bootstrap() {
   // Swagger sur /api/docs
   const swaggerConfig = new DocumentBuilder()
     .setTitle('RAG Platform API')
-    .setDescription('Documentation de l API pour le socle backend (Écoles et Filières)')
+    .setDescription('Documentation de l API pour le socle backend (Écoles, Filières, Utilisateurs et Authentification)')
     .setVersion('1.0')
+    .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api/docs', app, document);

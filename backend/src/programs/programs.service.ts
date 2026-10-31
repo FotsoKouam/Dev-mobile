@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -13,6 +14,7 @@ import { QueryProgramDto } from './dto/query-program.dto.js';
 import { ProgramResponseDto } from './dto/program-response.dto.js';
 import { PaginatedResponseDto } from '../common/dto/pagination.dto.js';
 import { ProgramStatus } from './enums/program-status.enum.js';
+import { AuthenticatedUser } from '../auth/decorators/current-user.decorator.js';
 
 @Injectable()
 export class ProgramsService {
@@ -26,7 +28,12 @@ export class ProgramsService {
   async findBySchool(
     schoolId: string,
     query: QueryProgramDto,
+    user?: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<ProgramResponseDto>> {
+    if (user && !user.isPlatformAdmin && user.schoolId && user.schoolId !== schoolId) {
+      throw new ForbiddenException("Vous n'avez pas accès aux filières de cet établissement.");
+    }
+
     const school = await this.schoolsRepository.findOne({ where: { id: schoolId } });
     if (!school) {
       throw new NotFoundException(`School with ID "${schoolId}" not found`);
@@ -60,16 +67,24 @@ export class ProgramsService {
     };
   }
 
-  async findOne(id: string): Promise<ProgramResponseDto> {
+  async findOne(id: string, user?: AuthenticatedUser): Promise<ProgramResponseDto> {
     const program = await this.programsRepository.findOne({ where: { id } });
     if (!program) {
       throw new NotFoundException(`Program with ID "${id}" not found`);
     }
 
+    if (user && !user.isPlatformAdmin && user.schoolId && user.schoolId !== program.schoolId) {
+      throw new ForbiddenException("Vous n'avez pas accès à cette filière.");
+    }
+
     return this.toResponseDto(program);
   }
 
-  async create(schoolId: string, dto: CreateProgramDto): Promise<ProgramResponseDto> {
+  async create(schoolId: string, dto: CreateProgramDto, user?: AuthenticatedUser): Promise<ProgramResponseDto> {
+    if (user && !user.isPlatformAdmin && user.schoolId && user.schoolId !== schoolId) {
+      throw new ForbiddenException("Vous ne pouvez créer des filières que dans votre établissement.");
+    }
+
     const school = await this.schoolsRepository.findOne({ where: { id: schoolId } });
     if (!school) {
       throw new NotFoundException(`School with ID "${schoolId}" not found`);
@@ -106,10 +121,14 @@ export class ProgramsService {
     }
   }
 
-  async update(id: string, dto: UpdateProgramDto): Promise<ProgramResponseDto> {
+  async update(id: string, dto: UpdateProgramDto, user?: AuthenticatedUser): Promise<ProgramResponseDto> {
     const program = await this.programsRepository.findOne({ where: { id } });
     if (!program) {
       throw new NotFoundException(`Program with ID "${id}" not found`);
+    }
+
+    if (user && !user.isPlatformAdmin && user.schoolId && user.schoolId !== program.schoolId) {
+      throw new ForbiddenException("Vous ne pouvez modifier que les filières de votre établissement.");
     }
 
     if (dto.name !== undefined) {
@@ -155,9 +174,7 @@ export class ProgramsService {
       name: program.name,
       description: program.description ?? null,
       status: program.status,
-      // TODO: calculate from users module when implemented
       usersCount: 0,
-      // TODO: calculate from spaces module when implemented
       spacesCount: 0,
       createdAt: program.createdAt instanceof Date ? program.createdAt.toISOString() : String(program.createdAt),
       updatedAt: program.updatedAt instanceof Date ? program.updatedAt.toISOString() : String(program.updatedAt),
