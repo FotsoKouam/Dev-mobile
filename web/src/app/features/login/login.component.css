@@ -1,0 +1,571 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+}
+
+/* =========================================================================
+   PAGE : fond #F0F4FA + formes décoratives (arcs partiels dans les coins)
+   ========================================================================= */
+.login-page {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 32px 24px;
+  background-color: #F0F4FA;
+  overflow: hidden;
+}
+
+/* Arcs décoratifs de la page — imite la maquette (coins haut-gauche et bas-droit) */
+.bg-shape {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Coin haut-gauche : grand arc concentrique #1 */
+.bg-shape-tl {
+  width: 600px;
+  height: 600px;
+  top: -250px;
+  left: -250px;
+  border: 80px solid rgba(74, 111, 165, 0.12);
+  background: transparent;
+}
+
+/* Coin bas-droit : grand arc concentrique */
+.bg-shape-br {
+  width: 550px;
+  height: 550px;
+  bottom: -220px;
+  right: -200px;
+  border: 70px solid rgba(27, 42, 74, 0.10);
+  background: transparent;
+}
+
+/* Coin bas-gauche : petit accent */
+.bg-shape-bl {
+  width: 300px;
+  height: 300px;
+  bottom: -140px;
+  left: -80px;
+  border: 50px solid rgba(74, 111, 165, 0.07);
+  background: transparent;
+}
+
+/* =========================================================================
+   CARTE CENTRALE : 1100 × 600, arrondi 20, ombre marquée
+   ========================================================================= */
+.login-card {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 50% 50%;
+  width: 100%;
+  max-width: 1100px;
+  min-height: 600px;
+  background-color: #FFFFFF;
+  border-radius: 20px;
+  box-shadow:
+    0 20px 60px rgba(27, 42, 74, 0.16),
+    0 6px 20px rgba(27, 42, 74, 0.08);
+  overflow: hidden;
+}
+
+/* =========================================================================
+   COLONNE GAUCHE
+   ========================================================================= */
+.left-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 56px 40px 52px;
+  background-color: #FFFFFF;
+  position: relative;
+  z-index: 2;
+}
+
+/* Bord courbe blanc qui "mord" dans la colonne droite — comme la maquette */
+.left-col::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: -40px;
+  width: 80px;
+  height: 100%;
+  background: #FFFFFF;
+  border-radius: 0 50% 50% 0 / 0 50% 50% 0;
+  z-index: 5;
+}
+
+/* ---- Logo (56 px, Manrope 700) ---- */
+.portal-header {
+  margin-bottom: 0;
+}
+
+.logo-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo-icon {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-name {
+  font-family: 'Manrope', -apple-system, sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: #1B2A4A;
+  letter-spacing: -0.2px;
+}
+
+.brand-subtitle {
+  font-family: 'Manrope', -apple-system, sans-serif;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1.6px;
+  color: #9AA5B8;
+  text-transform: uppercase;
+}
+
+/* ---- Onglets (alignés à gauche, 22 px / 20 px) ---- */
+.tabs-nav {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  gap: 40px;
+  margin-top: 32px;
+  margin-bottom: 28px;
+}
+
+.tab-btn {
+  background: none;
+  border: none;
+  font-family: 'Manrope', -apple-system, sans-serif;
+  padding: 0 0 10px 0;
+  cursor: pointer;
+  position: relative;
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.tab-btn.active {
+  font-size: 22px;
+  font-weight: 600;
+  color: #1B2A4A;
+}
+
+.tab-btn.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background-color: #1B2A4A;
+  border-radius: 2px;
+}
+
+.tab-btn.inactive {
+  font-size: 20px;
+  font-weight: 400;
+  color: #9AA5B8;
+  cursor: default;
+}
+
+.tab-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* ---- Tooltips ---- */
+.tooltip {
+  position: absolute;
+  top: -36px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #1B2A4A;
+  color: #ffffff;
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 5px 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 20;
+  animation: fadeIn 0.2s ease-in-out;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: #1B2A4A transparent transparent transparent;
+}
+
+.tooltip-below {
+  top: auto;
+  bottom: -36px;
+}
+
+.tooltip-below::after {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent #1B2A4A transparent;
+}
+
+/* ---- Formulaire (champs 56 px, gap 24 px) ---- */
+.login-form {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 24px;
+}
+
+.form-group:last-of-type {
+  margin-bottom: 28px;
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  border: 1.5px solid #D9DFEA;
+  border-radius: 9999px;
+  padding: 0 20px;
+  background-color: #FFFFFF;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-wrapper:focus-within {
+  border-color: #4A6FA5;
+  box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.12);
+}
+
+.input-wrapper.has-error {
+  border-color: #E85D4E;
+}
+
+.input-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  margin-right: 14px;
+}
+
+input {
+  flex: 1;
+  border: none;
+  outline: none;
+  font-family: 'Manrope', -apple-system, sans-serif;
+  font-size: 14px;
+  color: #1B2A4A;
+  background: transparent;
+}
+
+input::placeholder {
+  color: #B0BAC8;
+}
+
+.eye-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.eye-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.error-msg {
+  color: #E85D4E;
+  font-size: 12px;
+  font-weight: 500;
+  margin-top: 6px;
+  padding-left: 18px;
+}
+
+/* ---- Ligne d'actions ---- */
+.actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+}
+
+.forgot-wrapper {
+  position: relative;
+}
+
+.forgot-link {
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1B2A4A;
+  text-decoration: none;
+  transition: text-decoration 0.2s ease;
+}
+
+.forgot-link:hover {
+  text-decoration: underline;
+}
+
+.submit-btn {
+  height: 52px;
+  min-width: 160px;
+  padding: 0 36px;
+  border-radius: 9999px;
+  background-color: #1B2A4A;
+  color: #ffffff;
+  font-family: 'Manrope', -apple-system, sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.2px;
+  transition: background-color 0.2s ease, opacity 0.2s ease, transform 0.1s ease;
+}
+
+.submit-btn:hover:not(:disabled) {
+  background-color: #2E3F6B;
+}
+
+.submit-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.global-error {
+  margin-top: 16px;
+  padding: 12px 18px;
+  background-color: rgba(232, 93, 78, 0.07);
+  border: 1px solid rgba(232, 93, 78, 0.25);
+  border-radius: 10px;
+  color: #E85D4E;
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  animation: fadeIn 0.2s ease;
+}
+
+/* ---- Pied de colonne ---- */
+.col-footer {
+  padding-top: 16px;
+}
+
+.tls-text {
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  color: #B0BAC8;
+  letter-spacing: 0.2px;
+}
+
+/* =========================================================================
+   COLONNE DROITE : larges arcs concentriques (CSS) + illustration
+   ========================================================================= */
+.right-col {
+  position: relative;
+  overflow: hidden;
+  /* couleur de fond = la plus claire (#4A6FA5) visible entre le bord de carte et l'arc externe */
+  background-color: #4A6FA5;
+}
+
+/*
+  Arcs concentriques : trois très grands cercles centrés loin à droite.
+  Comme ils sont immenses, la partie visible forme de larges bandes courbées
+  et non des cercles serrés.
+*/
+.arc {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* Arc externe : #4A6FA5 – c'est le fond, cet arc crée le bord gauche visible */
+.arc-outer {
+  width: 900px;
+  height: 900px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-20%, -50%);
+  background-color: #4A6FA5;
+}
+
+/* Arc intermédiaire : #2E3F6B */
+.arc-mid {
+  width: 750px;
+  height: 750px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-15%, -50%);
+  background-color: #2E3F6B;
+}
+
+/* Arc interne (le plus foncé) : #1B2A4A */
+.arc-inner {
+  width: 600px;
+  height: 600px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-10%, -50%);
+  background-color: #1B2A4A;
+}
+
+/* Illustration isométrique centrée dans les arcs */
+.isometric-illustration {
+  position: absolute;
+  z-index: 2;
+  width: 82%;
+  max-width: 370px;
+  /* Positionné au centre des arcs, légèrement vers la gauche et le haut */
+  top: 46%;
+  left: 46%;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 18px 30px rgba(8, 16, 35, 0.40));
+}
+
+/* Badge « Système académique connecté » */
+.system-badge {
+  position: absolute;
+  bottom: 48px;
+  right: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  border-radius: 9999px;
+  border: 1px solid rgba(74, 111, 165, 0.6);
+  background-color: rgba(15, 24, 48, 0.65);
+  backdrop-filter: blur(8px);
+  z-index: 3;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #3F8F5F;
+  box-shadow: 0 0 8px rgba(63, 143, 95, 0.85);
+  flex-shrink: 0;
+}
+
+.badge-text {
+  font-family: 'Manrope', sans-serif;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+/* Copyright */
+.copyright-text {
+  position: absolute;
+  bottom: 18px;
+  right: 32px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.75);
+  z-index: 3;
+}
+
+/* =========================================================================
+   ACCESSIBILITÉ
+   ========================================================================= */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* =========================================================================
+   ANIMATIONS
+   ========================================================================= */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================================
+   RESPONSIVE
+   ========================================================================= */
+@media (max-width: 880px) {
+  .login-card {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+    min-height: auto;
+  }
+
+  .right-col {
+    display: none;
+  }
+
+  .left-col {
+    padding: 40px 28px 36px;
+  }
+
+  .left-col::after {
+    display: none;
+  }
+
+  .tabs-nav {
+    gap: 24px;
+  }
+
+  .tab-btn.active {
+    font-size: 19px;
+  }
+
+  .tab-btn.inactive {
+    font-size: 17px;
+  }
+}

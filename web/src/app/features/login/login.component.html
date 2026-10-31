@@ -1,0 +1,255 @@
+<main class="login-page">
+
+  <!-- Formes décoratives d'arrière-plan -->
+  <div class="bg-shape bg-shape-tl" aria-hidden="true"></div>
+  <div class="bg-shape bg-shape-br" aria-hidden="true"></div>
+  <div class="bg-shape bg-shape-bl" aria-hidden="true"></div>
+
+  <div class="login-card">
+    <!-- Colonne gauche : Formulaire -->
+    <section class="left-col">
+
+      <!-- Logo et titre du portail -->
+      <header class="portal-header">
+        <div class="logo-wrapper">
+          <!-- Chapeau de diplômé sur livre ouvert -->
+          <svg class="logo-icon" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <!-- Livre ouvert base -->
+            <path d="M8 38C8 36.5 9 35.5 10.5 35C17 33 22 35 28 35C34 35 39 33 45.5 35C47 35.5 48 36.5 48 38V46C48 47.5 47 48 45.5 47.5C39 45.5 34 47.5 28 47.5C22 47.5 17 45.5 10.5 47.5C9 48 8 47.5 8 46V38Z" fill="#1B2A4A"/>
+            <path d="M28 35V47.5" stroke="#4A6FA5" stroke-width="1.5"/>
+            <path d="M8 38C8 36.5 9 35.5 10.5 35C17 33 22 35 28 35" fill="none" stroke="#3A5A8A" stroke-width="1"/>
+            <path d="M28 35C34 35 39 33 45.5 35C47 35.5 48 36.5 48 38" fill="none" stroke="#2E4870" stroke-width="1"/>
+            <!-- Chapeau de diplômé -->
+            <path d="M28 12L8 22L28 32L48 22L28 12Z" fill="#1B2A4A"/>
+            <path d="M14 25.5V33.5" stroke="#1B2A4A" stroke-width="2.5" stroke-linecap="round"/>
+            <path d="M44 25V32" stroke="#1B2A4A" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="44" cy="33.5" r="2.5" fill="#1B2A4A"/>
+            <!-- Haut du chapeau = toge -->
+            <path d="M21 29.5C23.5 31 26 31.5 28 31.5C30 31.5 32.5 31 35 29.5" stroke="#4A6FA5" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          <div class="brand-text">
+            <span class="brand-name">CampusIA</span>
+            <span class="brand-subtitle">PORTAIL ADMINISTRATEUR</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Onglets d'accès -->
+      <nav class="tabs-nav" role="tablist" aria-label="Modes de connexion">
+        <button
+          type="button"
+          role="tab"
+          id="tab-login"
+          [attr.aria-selected]="activeTab() === 'login'"
+          aria-controls="panel-login"
+          class="tab-btn active"
+          (click)="onTabClick('login')"
+        >
+          Connexion
+        </button>
+
+        <div class="tab-wrapper">
+          <button
+            type="button"
+            role="tab"
+            id="tab-institutional"
+            [attr.aria-selected]="false"
+            aria-controls="panel-login"
+            class="tab-btn inactive"
+            (click)="onTabClick('institutional')"
+          >
+            Accès institutionnel
+          </button>
+          @if (institutionalTooltip()) {
+            <div class="tooltip" role="tooltip">Disponible prochainement</div>
+          }
+        </div>
+      </nav>
+
+      <!-- Formulaire de connexion -->
+      <form
+        id="panel-login"
+        role="tabpanel"
+        aria-labelledby="tab-login"
+        class="login-form"
+        (ngSubmit)="onSubmit()"
+      >
+        <!-- Champ Identifiant / Email -->
+        <div class="form-group">
+          <label for="identifier-input" class="visually-hidden">Identifiant académique ou email</label>
+          <div class="input-wrapper" [class.has-error]="!!identifierError()">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M20 21V19C20 17.9391 19.5786 16.9217 18.8284 16.1716C18.0783 15.4214 17.0609 15 16 15H8C6.93913 15 5.92172 15.4214 5.17157 16.1716C4.42143 16.9217 4 17.9391 4 19V21" stroke="#1B2A4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M12 11C14.2091 11 16 9.20914 16 7C16 4.79086 14.2091 3 12 3C9.79086 3 8 4.79086 8 7C8 9.20914 9.79086 11 12 11Z" stroke="#1B2A4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <input
+              id="identifier-input"
+              type="text"
+              name="identifier"
+              placeholder="Identifiant académique ou email"
+              [(ngModel)]="identifier"
+              [attr.aria-invalid]="!!identifierError()"
+              [attr.aria-describedby]="identifierError() ? 'identifier-error' : null"
+              autocomplete="username"
+              required
+            />
+          </div>
+          @if (identifierError()) {
+            <p id="identifier-error" class="error-msg" role="alert">{{ identifierError() }}</p>
+          }
+        </div>
+
+        <!-- Champ Mot de passe -->
+        <div class="form-group">
+          <label for="password-input" class="visually-hidden">Mot de passe</label>
+          <div class="input-wrapper" [class.has-error]="!!passwordError()">
+            <svg class="input-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <rect x="3" y="11" width="18" height="11" rx="2" stroke="#1B2A4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M7 11V7C7 5.67392 7.52678 4.40215 8.46447 3.46447C9.40215 2.52678 10.6739 2 12 2C13.3261 2 14.5979 2.52678 15.5355 3.46447C16.4732 4.40215 17 5.67392 17 7V11" stroke="#1B2A4A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <input
+              id="password-input"
+              [type]="showPassword ? 'text' : 'password'"
+              name="password"
+              placeholder="Mot de passe"
+              [(ngModel)]="password"
+              [attr.aria-invalid]="!!passwordError()"
+              [attr.aria-describedby]="passwordError() ? 'password-error' : null"
+              autocomplete="current-password"
+              required
+            />
+            <button
+              type="button"
+              class="eye-btn"
+              (click)="togglePasswordVisibility()"
+              [attr.aria-label]="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
+            >
+              @if (showPassword) {
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7A8499" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                  <line x1="1" y1="1" x2="23" y2="23"/>
+                </svg>
+              } @else {
+                <svg viewBox="0 0 24 24" fill="none" stroke="#7A8499" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              }
+            </button>
+          </div>
+          @if (passwordError()) {
+            <p id="password-error" class="error-msg" role="alert">{{ passwordError() }}</p>
+          }
+        </div>
+
+        <!-- Ligne d'action : Mot de passe oublié & Bouton Se connecter -->
+        <div class="actions-row">
+          <div class="forgot-wrapper">
+            <a
+              href="#forgot-password"
+              class="forgot-link"
+              (click)="onForgotPasswordClick($event)"
+            >
+              Mot de passe oublié ?
+            </a>
+            @if (forgotPasswordTooltip()) {
+              <div class="tooltip tooltip-below" role="tooltip">Disponible prochainement</div>
+            }
+          </div>
+
+          <button
+            type="submit"
+            class="submit-btn"
+            [disabled]="isLoading()"
+          >
+            {{ isLoading() ? 'Connexion en cours…' : 'Se connecter' }}
+          </button>
+        </div>
+
+        <!-- Message d'erreur global (401, 429, réseau) -->
+        @if (globalError()) {
+          <div class="global-error" role="alert">
+            {{ globalError() }}
+          </div>
+        }
+      </form>
+
+      <!-- Pied de colonne -->
+      <footer class="col-footer">
+        <span class="tls-text">Protocole sécurisé TLS 1.3</span>
+      </footer>
+    </section>
+
+    <!-- Colonne droite : Illustration graphique -->
+    <aside class="right-col" aria-hidden="true">
+      <!-- Arcs concentriques CSS (larges cercles centrés loin à droite) -->
+      <div class="arc arc-outer"></div>
+      <div class="arc arc-mid"></div>
+      <div class="arc arc-inner"></div>
+
+      <!-- Illustration isométrique posée sur les arcs -->
+      <svg class="isometric-illustration" viewBox="0 0 400 320" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Ombre portée générale -->
+        <ellipse cx="195" cy="245" rx="155" ry="38" fill="#0B1525" fill-opacity="0.35"/>
+
+        <!-- ========== ORDINATEUR PORTABLE ========== -->
+        <!-- Base clavier (dessus) -->
+        <path d="M85 195L200 258L295 200L180 138L85 195Z" fill="#E2EAF6"/>
+        <!-- Épaisseur base gauche -->
+        <path d="M85 195L200 258L200 266L85 203Z" fill="#B8C8DC"/>
+        <!-- Épaisseur base droite -->
+        <path d="M200 258L295 200L295 208L200 266Z" fill="#96AACB"/>
+
+        <!-- Surface clavier -->
+        <path d="M105 188L178 228L248 188L175 149L105 188Z" fill="#1B2A4A"/>
+        <!-- Lignes de touches -->
+        <path d="M120 183L165 207L195 190L150 166L120 183Z" stroke="#4A6FA5" stroke-width="1.2" stroke-dasharray="3 3" fill="none"/>
+        <path d="M140 195L185 219L215 202L170 178L140 195Z" stroke="#4A6FA5" stroke-width="1.2" stroke-dasharray="3 3" fill="none"/>
+        <!-- Touchpad -->
+        <path d="M170 238L196 252L218 238L192 224L170 238Z" fill="#C8D6E8"/>
+
+        <!-- Écran (panneau) -->
+        <path d="M180 138L295 200L295 100L180 38Z" fill="#1B2A4A"/>
+        <!-- Écran intérieur blanc -->
+        <path d="M183 134L291 193L291 105L183 46Z" fill="#FFFFFF"/>
+        <!-- Reflet léger en haut -->
+        <path d="M183 46L291 105L291 115L183 58Z" fill="#EEF3FA" fill-opacity="0.6"/>
+
+        <!-- ========== TASSE DE CAFÉ ========== -->
+        <!-- Assiette/fond -->
+        <ellipse cx="55" cy="196" rx="16" ry="8" fill="#B8C8DC"/>
+        <!-- Corps de la tasse -->
+        <path d="M39 188V202C39 207 47 210 55 210C63 210 71 207 71 202V188" fill="#FFFFFF"/>
+        <ellipse cx="55" cy="188" rx="16" ry="8" fill="#FFFFFF"/>
+        <!-- Liquide café -->
+        <ellipse cx="55" cy="187" rx="12" ry="6" fill="#2E3F6B"/>
+        <!-- Anse -->
+        <path d="M39 191C32 192 32 203 39 204" stroke="#FFFFFF" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+
+        <!-- ========== PLANTE ========== -->
+        <!-- Ombre pot -->
+        <ellipse cx="305" cy="238" rx="22" ry="10" fill="#0B1525" fill-opacity="0.3"/>
+        <!-- Corps du pot -->
+        <path d="M284 218L288 248C288 252 295 256 305 256C315 256 322 252 322 248L326 218" fill="#FFFFFF"/>
+        <ellipse cx="305" cy="218" rx="21" ry="10" fill="#D0DAE8"/>
+        <ellipse cx="305" cy="218" rx="17" ry="8" fill="#1B2A4A"/>
+        <!-- Tiges et feuilles -->
+        <path d="M305 213C293 196 290 172 303 145C312 172 312 195 305 213Z" fill="#2E3F6B"/>
+        <path d="M308 212C316 190 330 178 338 162C333 188 320 202 308 212Z" fill="#4A6FA5"/>
+        <path d="M302 212C293 194 276 186 270 170C279 192 291 205 302 212Z" fill="#1B2A4A"/>
+        <path d="M306 208C302 190 300 165 307 142C315 167 311 190 306 208Z" fill="#3A5A8A"/>
+      </svg>
+
+      <!-- Badge « Système académique connecté » -->
+      <div class="system-badge">
+        <span class="status-dot"></span>
+        <span class="badge-text">Système académique connecté</span>
+      </div>
+
+      <!-- Copyright -->
+      <div class="copyright-text">
+        © 2026 CampusIA Technologies
+      </div>
+    </aside>
+  </div>
+</main>

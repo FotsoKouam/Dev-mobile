@@ -1,1 +1,32 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global theme CSS variables and resets */
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&display=swap');
+
+:root {
+  --color-primary: #1B2A4A;
+  --color-primary-light: #2E3F6B;
+  --color-accent: #4A6FA5;
+  --color-bg-page: #F7F9FC;
+  --color-card-bg: #FFFFFF;
+  --color-border: #D9DFEA;
+  --color-text-dark: #1B2A4A;
+  --color-text-muted: #7A8499;
+  --color-text-light: #9AA5B8;
+  --color-error: #E85D4E;
+  --color-success: #3F8F5F;
+  --font-family-body: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-family-serif: 'Newsreader', Georgia, serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family-body);
+  background-color: var(--color-bg-page);
+  color: var(--color-text-dark);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
