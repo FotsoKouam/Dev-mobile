@@ -6,6 +6,9 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { SchoolsModule } from './schools/schools.module.js';
 import { ProgramsModule } from './programs/programs.module.js';
+import { RolesModule } from './roles/roles.module.js';
+import { UsersModule } from './users/users.module.js';
+import { AssignmentsModule } from './assignments/assignments.module.js';
 
 @Module({
   imports: [
@@ -33,6 +36,9 @@ import { ProgramsModule } from './programs/programs.module.js';
     }),
     SchoolsModule,
     ProgramsModule,
+    RolesModule,
+    UsersModule,
+    AssignmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
