@@ -16,8 +16,8 @@ export const routes: Routes = [
     path: 'schools',
     canActivate: [authGuard],
     loadComponent: () =>
-      import('./features/schools/schools-placeholder.component').then(
-        (m) => m.SchoolsPlaceholderComponent,
+      import('./features/schools/schools.component').then(
+        (m) => m.SchoolsComponent,
       ),
   },
   {
