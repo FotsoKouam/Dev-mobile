@@ -1,0 +1,220 @@
+.schools-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 1024px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.filters-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: #ffffff;
+  padding: 12px 18px;
+  border: 1px solid var(--color-border, #D9DFEA);
+  border-radius: 12px;
+}
+
+.filters-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+}
+
+.filter-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border, #D9DFEA);
+  border-radius: 8px;
+  background: #FFFFFF;
+  width: 280px;
+}
+
+.filter-search-box:focus-within {
+  border-color: var(--color-accent, #4A6FA5);
+}
+
+.filter-search-box input {
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--color-text-dark, #1B2A4A);
+  width: 100%;
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-muted, #7A8499);
+  flex-shrink: 0;
+}
+
+.filter-selects {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.select-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-select {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 40px;
+  padding: 0 32px 0 14px;
+  border: 1px solid var(--color-border, #D9DFEA);
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: var(--color-text-dark, #1B2A4A);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  outline: none;
+}
+
+.select-arrow {
+  position: absolute;
+  right: 10px;
+  width: 16px;
+  height: 16px;
+  color: #7A8499;
+  pointer-events: none;
+}
+
+.filter-select:focus {
+  border-color: var(--color-accent, #4A6FA5);
+}
+
+.btn-text-reset {
+  background: none;
+  border: none;
+  color: var(--color-accent, #4A6FA5);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.btn-text-reset:hover {
+  text-decoration: underline;
+}
+
+.filters-right {
+  display: flex;
+  align-items: center;
+}
+
+.btn-add {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: var(--color-primary, #1B2A4A);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.15s;
+}
+
+.btn-add:hover {
+  opacity: 0.92;
+}
+
+.plus-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.school-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.building-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: #F0F4FA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary-light, #2E3F6B);
+  flex-shrink: 0;
+}
+
+.building-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.school-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.school-title {
+  font-weight: 600;
+  color: var(--color-text-dark, #1B2A4A);
+}
+
+.school-city-sub {
+  font-size: 12px;
+  color: var(--color-text-muted, #7A8499);
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-muted, #7A8499);
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+
+.action-btn:hover {
+  background: #F0F4FA;
+  color: var(--color-accent, #4A6FA5);
+}
+
+.action-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
