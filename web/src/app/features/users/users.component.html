@@ -1,0 +1,319 @@
+<app-admin-layout
+  [pageTitle]="i18n.users.title"
+  [pageSubtitle]="i18n.users.subtitle"
+>
+  <div class="users-page">
+    <!-- 5 Cartes de statistiques (sans indicateurs de tendance) -->
+    <section class="stats-grid">
+      <!-- 1. Utilisateurs actifs -->
+      <app-stat-card
+        [label]="i18n.users.stats.usersActive"
+        [value]="stats()?.users?.active"
+        [subtext]="stats() ? ('sur ' + stats()!.users.total + ' au total') : ''"
+        icon="user"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+
+      <!-- 2. Administrateurs -->
+      <app-stat-card
+        [label]="i18n.users.stats.adminsActive"
+        [value]="(stats()?.byRole?.platform_admin || 0) + (stats()?.byRole?.school_admin || 0)"
+        icon="school"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+
+      <!-- 3. Personnel -->
+      <app-stat-card
+        [label]="i18n.users.stats.staffActive"
+        [value]="stats()?.byRole?.staff"
+        icon="program"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+
+      <!-- 4. Étudiants -->
+      <app-stat-card
+        [label]="i18n.users.stats.studentsActive"
+        [value]="stats()?.byRole?.student"
+        icon="user"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+
+      <!-- 5. Parents / invités -->
+      <app-stat-card
+        [label]="i18n.users.stats.guestsActive"
+        [value]="stats()?.byRole?.guest"
+        icon="space"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+    </section>
+
+    <!-- Bandeau d'erreur éventuel -->
+    @if (errorUsers()) {
+      <app-error-banner
+        [message]="i18n.common.errorNetwork"
+        (retry)="loadUsers()"
+      ></app-error-banner>
+    }
+
+    <!-- Barre de filtres et action Inviter -->
+    <section class="filters-action-bar">
+      <div class="filters-left">
+        <!-- Recherche par nom / email -->
+        <div class="filter-search-box">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+          </svg>
+          <input
+            type="text"
+            [placeholder]="i18n.users.filters.searchPlaceholder"
+            [ngModel]="searchTerm()"
+            (ngModelChange)="onSearchInput($event)"
+          />
+        </div>
+
+        <div class="filter-selects">
+          <!-- Filtre Rôle -->
+          <div class="select-wrapper">
+            <select
+              class="filter-select"
+              [ngModel]="selectedRole()"
+              (ngModelChange)="onRoleChange($event)"
+            >
+              <option value="">{{ i18n.users.filters.allRoles }}</option>
+              <option value="platform_admin">{{ i18n.roles.platform_admin }}</option>
+              <option value="school_admin">{{ i18n.roles.school_admin }}</option>
+              <option value="staff">{{ i18n.roles.staff }}</option>
+              <option value="student">{{ i18n.roles.student }}</option>
+              <option value="guest">{{ i18n.roles.guest }}</option>
+            </select>
+            <svg class="select-arrow" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </div>
+
+          <!-- Filtre École -->
+          <div class="select-wrapper">
+            <select
+              class="filter-select"
+              [ngModel]="selectedSchoolId()"
+              (ngModelChange)="onSchoolChange($event)"
+            >
+              <option value="">{{ i18n.users.filters.allSchools }}</option>
+              @for (school of schoolsList(); track school.id) {
+                <option [value]="school.id">{{ school.name }}</option>
+              }
+            </select>
+            <svg class="select-arrow" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </div>
+
+          <!-- Filtre Filière (active seulement si école choisie) -->
+          <div class="select-wrapper">
+            <select
+              class="filter-select"
+              [disabled]="!selectedSchoolId()"
+              [ngModel]="selectedProgramId()"
+              (ngModelChange)="onProgramChange($event)"
+            >
+              <option value="">{{ i18n.users.filters.allPrograms }}</option>
+              @for (prog of programsList(); track prog.id) {
+                <option [value]="prog.id">{{ prog.name }}</option>
+              }
+            </select>
+            <svg class="select-arrow" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </div>
+
+          <!-- Filtre Statut -->
+          <div class="select-wrapper">
+            <select
+              class="filter-select"
+              [ngModel]="selectedStatus()"
+              (ngModelChange)="onStatusChange($event)"
+            >
+              <option value="">{{ i18n.users.filters.allStatuses }}</option>
+              <option value="active">{{ i18n.status.active }}</option>
+              <option value="inactive">{{ i18n.status.inactive }}</option>
+              <option value="suspended">{{ i18n.status.suspended }}</option>
+              <option value="invited">{{ i18n.status.invited }}</option>
+            </select>
+            <svg class="select-arrow" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </div>
+
+          @if (hasActiveFilters) {
+            <button class="btn-text-reset" (click)="resetFilters()">
+              {{ i18n.users.filters.resetFilters }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="filters-right">
+        @if (canManageUsers) {
+          <button class="btn btn-primary btn-add" (click)="openInviteUser()">
+            <svg viewBox="0 0 20 20" fill="currentColor" class="plus-icon">
+              <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+            </svg>
+            {{ i18n.users.inviteUserBtn }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- Tableau des utilisateurs -->
+    <app-data-table
+      [columns]="columns"
+      [data]="users()"
+      [meta]="meta()"
+      [loading]="loadingUsers()"
+      [clickable]="true"
+      [selectable]="true"
+      [hasEmptyStateContent]="true"
+      (rowClick)="openDetail($event)"
+      (pageChange)="onPageChange($event)"
+    >
+      <!-- Colonne Nom (avec tri cliquable) -->
+      <ng-template #cellName let-user>
+        <div class="user-name-cell">
+          <div class="user-avatar-circle">
+            {{ getUserInitials(user) }}
+          </div>
+          <div class="user-text-info">
+            <span class="user-fullname">{{ user.lastName }} {{ user.firstName }}</span>
+            <span class="user-email-sub">{{ user.email }}</span>
+          </div>
+        </div>
+      </ng-template>
+
+      <!-- Colonne École -->
+      <ng-template #cellSchool let-user>
+        <span class="school-col-text">{{ getUserSchoolName(user) }}</span>
+      </ng-template>
+
+      <!-- Colonne Filière -->
+      <ng-template #cellProgram let-user>
+        <span class="program-col-text">{{ getUserProgramName(user) }}</span>
+      </ng-template>
+
+      <!-- Colonne Rôle -->
+      <ng-template #cellRole let-user>
+        @if (getUserPrimaryRole(user); as role) {
+          <app-role-badge [role]="role"></app-role-badge>
+        } @else {
+          <span class="text-muted">—</span>
+        }
+      </ng-template>
+
+      <!-- Colonne Statut -->
+      <ng-template #cellStatus let-user>
+        <app-status-badge [status]="user.status"></app-status-badge>
+      </ng-template>
+
+      <!-- Colonne Dernière connexion -->
+      <ng-template #cellLastLogin let-user>
+        <span class="last-login-text">{{ formatLastLogin(user.lastLoginAt) }}</span>
+      </ng-template>
+
+      <!-- Colonne Actions -->
+      <ng-template #cellActions let-user>
+        <div class="row-actions" (click)="$event.stopPropagation()">
+          <!-- Œil : Détail -->
+          <button
+            class="action-btn"
+            (click)="openDetail(user)"
+            [title]="i18n.users.table.actions.viewDetail"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+
+          <!-- Crayon : Modifier (si manage_users) -->
+          @if (canManageUsers) {
+            <button
+              class="action-btn"
+              (click)="openEditUser(user)"
+              [title]="i18n.users.table.actions.edit"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+              </svg>
+            </button>
+          }
+
+          <!-- Menu '...' : Suspendre ou Réactiver (si manage_users et pas soi-même) -->
+          @if (canManageUsers) {
+            <button
+              class="action-btn"
+              [disabled]="user.id === currentUserId"
+              [class.disabled-action]="user.id === currentUserId"
+              (click)="openStatusDialog(user)"
+              [title]="user.status === 'active' ? i18n.users.table.actions.suspend : i18n.users.table.actions.reactivate"
+            >
+              <svg viewBox="0 0 20 20" fill="currentColor">
+                <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z" />
+              </svg>
+            </button>
+          }
+        </div>
+      </ng-template>
+
+      <!-- État Vide -->
+      <div emptyState>
+        @if (hasActiveFilters) {
+          <app-empty-state
+            [title]="i18n.users.table.emptySearchResult"
+            [actionLabel]="i18n.users.filters.resetFilters"
+            (action)="resetFilters()"
+          ></app-empty-state>
+        } @else {
+          <app-empty-state
+            [title]="i18n.users.table.emptyInitial"
+            [actionLabel]="canManageUsers ? i18n.users.inviteUserBtn : undefined"
+            (action)="openInviteUser()"
+          ></app-empty-state>
+        }
+      </div>
+    </app-data-table>
+  </div>
+
+  <!-- Panneau latéral de détail -->
+  <app-user-detail
+    [isOpen]="isDetailOpen()"
+    [user]="detailUser()"
+    [activeTab]="activeDetailTab()"
+    [canManageUsers]="canManageUsers"
+    [isCurrentConnectedUser]="detailUser()?.id === currentUserId"
+    (closeDetail)="closeDetail()"
+    (tabChange)="onDetailTabChange($event)"
+    (editUser)="openEditUser($event)"
+    (statusAction)="openStatusDialog($event)"
+  ></app-user-detail>
+
+  <!-- Modale Formulaire Utilisateur -->
+  <app-user-form
+    #userFormComp
+    [isOpen]="isUserFormOpen()"
+    [userToEdit]="userToEdit()"
+    [loading]="submittingUser()"
+    [schools]="schoolsList()"
+    (formSubmit)="onSaveUser($event, userFormComp)"
+    (formCancel)="closeUserForm()"
+  ></app-user-form>
+
+  <!-- Modale Changement de statut -->
+  <app-user-status-dialog
+    [isOpen]="isStatusDialogOpen()"
+    [user]="userForStatusAction()"
+    [loading]="submittingStatus()"
+    (confirmAction)="onConfirmStatusChange($event)"
+    (cancelAction)="closeStatusDialog()"
+  ></app-user-status-dialog>
+</app-admin-layout>
+
