@@ -37,6 +37,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'assignments',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/assignments/assignments.component').then(
+        (m) => m.AssignmentsComponent,
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'login',
   },

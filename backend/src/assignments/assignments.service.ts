@@ -16,6 +16,7 @@ import { CreateAssignmentDto } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { QueryAssignmentDto } from './dto/query-assignment.dto.js';
 import { AssignmentResponseDto } from './dto/assignment-response.dto.js';
+import { AssignmentStatsResponseDto } from './dto/assignment-stats-response.dto.js';
 import { PaginatedResponseDto } from '../common/dto/pagination.dto.js';
 import { AssignmentStatus } from './enums/assignment-status.enum.js';
 
@@ -50,11 +51,11 @@ export class AssignmentsService {
     }
 
     if (query.schoolId) {
-      qb.andWhere('assignment.school_id = :schoolId', { schoolId: query.schoolId });
+      qb.andWhere('assignment.schoolId = :schoolId', { schoolId: query.schoolId });
     }
 
     if (query.programId) {
-      qb.andWhere('assignment.program_id = :programId', { programId: query.programId });
+      qb.andWhere('assignment.programId = :programId', { programId: query.programId });
     }
 
     if (query.roleCode) {
@@ -64,12 +65,12 @@ export class AssignmentsService {
     if (query.search && query.search.trim() !== '') {
       const term = `%${query.search.trim().toLowerCase()}%`;
       qb.andWhere(
-        '(LOWER(user.first_name) LIKE :term OR LOWER(user.last_name) LIKE :term OR LOWER(user.email) LIKE :term)',
+        '(LOWER(user.firstName) LIKE :term OR LOWER(user.lastName) LIKE :term OR LOWER(user.email) LIKE :term)',
         { term },
       );
     }
 
-    qb.orderBy('assignment.created_at', 'DESC')
+    qb.orderBy('assignment.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
@@ -78,6 +79,23 @@ export class AssignmentsService {
     return {
       data: assignments.map((a) => this.toResponseDto(a)),
       meta: { page, limit, total },
+    };
+  }
+
+  async getStats(): Promise<AssignmentStatsResponseDto> {
+    const raw = await this.assignmentsRepository
+      .createQueryBuilder('assignment')
+      .select('COUNT(assignment.id)', 'total')
+      .addSelect('COUNT(DISTINCT assignment.userId)', 'users')
+      .addSelect('COUNT(DISTINCT assignment.schoolId)', 'schools')
+      .addSelect('COUNT(DISTINCT assignment.programId)', 'programs')
+      .getRawOne();
+
+    return {
+      total: Number(raw?.total ?? 0),
+      users: Number(raw?.users ?? 0),
+      schools: Number(raw?.schools ?? 0),
+      programs: Number(raw?.programs ?? 0),
     };
   }
 
