@@ -547,7 +547,10 @@ export class AdminLayoutComponent {
   }
 
   get canAccessUsers(): boolean {
-    return this.sessionService.hasPermission('manage_users');
+    return (
+      this.sessionService.hasPermission('manage_users') ||
+      this.sessionService.hasPermission('manage_assignments')
+    );
   }
 
   get canAccessRoles(): boolean {

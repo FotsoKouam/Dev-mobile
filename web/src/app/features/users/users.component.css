@@ -1,0 +1,252 @@
+.users-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* 5 Cartes de stats */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1200px) {
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Barre de filtres et actions */
+.filters-action-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.filters-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.filter-search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--color-border, #D9DFEA);
+  border-radius: 8px;
+  background: #FFFFFF;
+  width: 240px;
+}
+
+.filter-search-box input {
+  border: none;
+  background: none;
+  outline: none;
+  font-size: 13px;
+  color: var(--color-text-dark, #1B2A4A);
+  width: 100%;
+}
+
+.filter-search-box input::placeholder {
+  color: #9AA5B8;
+}
+
+.search-icon {
+  width: 16px;
+  height: 16px;
+  color: #7A8499;
+  flex-shrink: 0;
+}
+
+.filter-selects {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.select-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.filter-select {
+  appearance: none;
+  height: 40px;
+  padding: 0 32px 0 12px;
+  border: 1px solid var(--color-border, #D9DFEA);
+  border-radius: 8px;
+  background: #FFFFFF;
+  font-size: 13px;
+  color: var(--color-text-dark, #1B2A4A);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.filter-select:disabled {
+  background: #F0F4FA;
+  color: #9AA5B8;
+  cursor: not-allowed;
+}
+
+.filter-select:focus {
+  border-color: var(--color-accent, #4A6FA5);
+}
+
+.select-arrow {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: #7A8499;
+  pointer-events: none;
+}
+
+.btn-text-reset {
+  background: none;
+  border: none;
+  color: var(--color-accent, #4A6FA5);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+}
+
+.btn-text-reset:hover {
+  text-decoration: underline;
+}
+
+.filters-right {
+  display: flex;
+  align-items: center;
+}
+
+.btn {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--color-primary, #1B2A4A);
+  color: #FFFFFF;
+}
+
+.btn-primary:hover {
+  opacity: 0.95;
+}
+
+.plus-icon {
+  width: 16px;
+  height: 16px;
+}
+
+/* Ligne d'utilisateur */
+.user-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #1B2A4A;
+  color: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.user-text-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.user-fullname {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text-dark, #1B2A4A);
+}
+
+.user-email-sub {
+  font-size: 12px;
+  color: var(--color-text-muted, #7A8499);
+}
+
+.school-col-text,
+.program-col-text,
+.last-login-text {
+  font-size: 13px;
+  color: var(--color-text-dark, #1B2A4A);
+}
+
+.text-muted {
+  color: #7A8499;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  color: var(--color-text-muted, #7A8499);
+  padding: 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.action-btn:hover:not(:disabled) {
+  color: var(--color-primary, #1B2A4A);
+  background-color: #F0F4FA;
+}
+
+.action-btn:disabled,
+.action-btn.disabled-action {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.action-btn svg {
+  width: 16px;
+  height: 16px;
+}
+

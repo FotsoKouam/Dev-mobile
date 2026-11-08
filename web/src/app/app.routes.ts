@@ -21,6 +21,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'users',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/users/users.component').then(
+        (m) => m.UsersComponent,
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'login',
   },
