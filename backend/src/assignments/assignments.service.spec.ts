@@ -19,6 +19,8 @@ describe('AssignmentsService', () => {
 
   const mockQueryBuilder = {
     leftJoinAndSelect: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    addSelect: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
     andWhere: vi.fn().mockReturnThis(),
     orderBy: vi.fn().mockReturnThis(),
@@ -26,6 +28,7 @@ describe('AssignmentsService', () => {
     take: vi.fn().mockReturnThis(),
     getManyAndCount: vi.fn(),
     getOne: vi.fn(),
+    getRawOne: vi.fn(),
   };
 
   const mockAssignmentsRepository = {
@@ -267,6 +270,89 @@ describe('AssignmentsService', () => {
       const res = await service.deactivate('assign-1');
       expect(assignment.status).toBe(AssignmentStatus.INACTIVE);
       expect(res.status).toBe(AssignmentStatus.INACTIVE);
+    });
+  });
+
+  describe('findAll', () => {
+    it('devrait appliquer le tri par createdAt DESC et la pagination', async () => {
+      const mockAssignments = [
+        {
+          id: 'assign-1',
+          userId: 'u-1',
+          roleId: 'r-1',
+          status: AssignmentStatus.ACTIVE,
+          user: { id: 'u-1', firstName: 'Jean', lastName: 'Dupont', email: 'jean@test.cm' },
+          role: { id: 'r-1', name: 'Personnel', code: RoleCode.STAFF },
+          school: null,
+          program: null,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ];
+      mockQueryBuilder.getManyAndCount.mockResolvedValueOnce([mockAssignments, 1]);
+
+      const result = await service.findAll({ page: 2, limit: 10 });
+
+      expect(mockAssignmentsRepository.createQueryBuilder).toHaveBeenCalledWith('assignment');
+      expect(mockQueryBuilder.orderBy).toHaveBeenCalledWith('assignment.createdAt', 'DESC');
+      expect(mockQueryBuilder.skip).toHaveBeenCalledWith(10);
+      expect(mockQueryBuilder.take).toHaveBeenCalledWith(10);
+      expect(result).toEqual({
+        data: [
+          expect.objectContaining({
+            id: 'assign-1',
+            status: AssignmentStatus.ACTIVE,
+          }),
+        ],
+        meta: { page: 2, limit: 10, total: 1 },
+      });
+    });
+  });
+
+  describe('getStats', () => {
+    it('devrait retourner les métriques globales calculées via COUNT(DISTINCT)', async () => {
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce({
+        total: '15',
+        users: '10',
+        schools: '3',
+        programs: '5',
+      });
+
+      const stats = await service.getStats();
+
+      expect(mockAssignmentsRepository.createQueryBuilder).toHaveBeenCalledWith('assignment');
+      expect(mockQueryBuilder.select).toHaveBeenCalledWith('COUNT(assignment.id)', 'total');
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith(
+        'COUNT(DISTINCT assignment.userId)',
+        'users',
+      );
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith(
+        'COUNT(DISTINCT assignment.schoolId)',
+        'schools',
+      );
+      expect(mockQueryBuilder.addSelect).toHaveBeenCalledWith(
+        'COUNT(DISTINCT assignment.programId)',
+        'programs',
+      );
+      expect(stats).toEqual({
+        total: 15,
+        users: 10,
+        schools: 3,
+        programs: 5,
+      });
+    });
+
+    it('devrait retourner des zéros si la table est vide', async () => {
+      mockQueryBuilder.getRawOne.mockResolvedValueOnce(null);
+
+      const stats = await service.getStats();
+
+      expect(stats).toEqual({
+        total: 0,
+        users: 0,
+        schools: 0,
+        programs: 0,
+      });
     });
   });
 });

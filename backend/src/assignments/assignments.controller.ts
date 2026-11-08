@@ -25,6 +25,7 @@ import { CreateAssignmentDto } from './dto/create-assignment.dto.js';
 import { UpdateAssignmentDto } from './dto/update-assignment.dto.js';
 import { QueryAssignmentDto } from './dto/query-assignment.dto.js';
 import { AssignmentResponseDto } from './dto/assignment-response.dto.js';
+import { AssignmentStatsResponseDto } from './dto/assignment-stats-response.dto.js';
 import { PaginatedResponseDto } from '../common/dto/pagination.dto.js';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator.js';
 
@@ -33,6 +34,14 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 @Controller('assignments')
 export class AssignmentsController {
   constructor(private readonly assignmentsService: AssignmentsService) {}
+
+  @Get('stats')
+  @RequirePermissions('manage_assignments')
+  @ApiOperation({ summary: 'Obtenir les statistiques globales des affectations' })
+  @ApiOkResponse({ description: 'Statistiques des affectations', type: AssignmentStatsResponseDto })
+  async getStats(): Promise<AssignmentStatsResponseDto> {
+    return this.assignmentsService.getStats();
+  }
 
   @Get()
   @RequirePermissions('manage_assignments')

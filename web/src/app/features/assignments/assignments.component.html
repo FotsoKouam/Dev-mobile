@@ -1,0 +1,265 @@
+<app-admin-layout
+  [pageTitle]="i18n.assignmentsPage.title"
+  [pageSubtitle]="i18n.assignmentsPage.subtitle"
+>
+  <div class="assignments-page">
+    <!-- 4 Cartes de statistiques (sans indicateurs de tendance fictifs) -->
+    <section class="stats-grid">
+      <!-- 1. Total des affectations -->
+      <app-stat-card
+        [label]="i18n.assignmentsPage.stats.total"
+        [value]="stats()?.total ?? '—'"
+        [subtext]="stats() ? ('sur ' + stats()!.total + ' au total') : ''"
+        icon="school"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+
+      <!-- 2. Utilisateurs concernés -->
+      <app-stat-card
+        [label]="i18n.assignmentsPage.stats.distinctUsers"
+        [value]="stats()?.users ?? '—'"
+        [subtext]="stats() ? ('sur ' + stats()!.users + ' utilisateurs') : ''"
+        icon="user"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+
+      <!-- 3. Écoles impliquées -->
+      <app-stat-card
+        [label]="i18n.assignmentsPage.stats.distinctSchools"
+        [value]="stats()?.schools ?? '—'"
+        [subtext]="stats() ? ('sur ' + stats()!.schools + ' écoles') : ''"
+        icon="school"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+
+      <!-- 4. Filières gérées -->
+      <app-stat-card
+        [label]="i18n.assignmentsPage.stats.distinctPrograms"
+        [value]="stats()?.programs ?? '—'"
+        [subtext]="stats() ? ('sur ' + stats()!.programs + ' filières') : ''"
+        icon="program"
+        [loading]="loadingStats()"
+      ></app-stat-card>
+    </section>
+
+    <!-- Bandeau d'erreur éventuel -->
+    @if (errorAssignments()) {
+      <app-error-banner
+        [message]="i18n.common.errorNetwork"
+        (retry)="onRefresh()"
+      ></app-error-banner>
+    }
+
+    <!-- Barre de filtres et d'action -->
+    <section class="filters-action-bar">
+      <div class="filters-left">
+        <!-- Recherche (300ms debounce) -->
+        <div class="filter-search-box">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            [placeholder]="i18n.assignmentsPage.filters.searchPlaceholder"
+            [value]="searchTerm()"
+            (input)="onSearchChange($event)"
+            aria-label="Recherche par nom ou email d'utilisateur"
+          />
+        </div>
+
+        <!-- Filtre École -->
+        <div class="filter-select-box">
+          <select
+            [ngModel]="selectedSchoolId()"
+            (ngModelChange)="onSchoolFilterChange($event)"
+            aria-label="Filtrer par école"
+          >
+            <option value="">{{ i18n.assignmentsPage.filters.allSchools }}</option>
+            @for (s of schoolsList(); track s.id) {
+              <option [value]="s.id">{{ s.name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Filtre Filière (active seulement si école choisie) -->
+        <div class="filter-select-box">
+          <select
+            [disabled]="selectedSchoolId() === ''"
+            [ngModel]="selectedProgramId()"
+            (ngModelChange)="onProgramFilterChange($event)"
+            aria-label="Filtrer par filière"
+          >
+            <option value="">{{ i18n.assignmentsPage.filters.allPrograms }}</option>
+            @for (p of programsList(); track p.id) {
+              <option [value]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Filtre Rôle -->
+        <div class="filter-select-box">
+          <select
+            [ngModel]="selectedRoleCode()"
+            (ngModelChange)="onRoleFilterChange($event)"
+            aria-label="Filtrer par rôle"
+          >
+            <option value="">{{ i18n.assignmentsPage.filters.allRoles }}</option>
+            @for (r of roleFilterOptions; track r.code) {
+              <option [value]="r.code">{{ r.label }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Filtre Statut -->
+        <div class="filter-select-box">
+          <select
+            [ngModel]="selectedStatus()"
+            (ngModelChange)="onStatusFilterChange($event)"
+            aria-label="Filtrer par statut"
+          >
+            <option value="">{{ i18n.assignmentsPage.filters.allStatuses }}</option>
+            <option value="active">{{ i18n.assignmentsPage.filters.statusActive }}</option>
+            <option value="inactive">{{ i18n.assignmentsPage.filters.statusInactive }}</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Action Création (si manage_assignments) -->
+      @if (canManageAssignments) {
+        <div class="actions-right">
+          <button class="btn btn-primary" (click)="openCreateModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            <span>{{ i18n.assignmentsPage.newAssignmentBtn }}</span>
+          </button>
+        </div>
+      }
+    </section>
+
+    <!-- Tableau des affectations -->
+    <section class="table-container">
+      <app-data-table
+        [columns]="columns"
+        [data]="assignments()"
+        [meta]="meta()"
+        [loading]="loadingAssignments()"
+        (pageChange)="onPageChange($event)"
+        (rowClick)="openDetail($event)"
+      >
+        <!-- Template Utilisateur -->
+        <ng-template #cellUser let-assignment>
+          <div class="user-cell">
+            <div class="user-avatar-badge">
+              <span>{{ getUserInitials(assignment.user) }}</span>
+            </div>
+            <div class="user-meta">
+              <span class="user-fullname">{{ assignment.user.firstName }} {{ assignment.user.lastName }}</span>
+              <span class="user-email">{{ assignment.user.email }}</span>
+            </div>
+          </div>
+        </ng-template>
+
+        <!-- Template École -->
+        <ng-template #cellSchool let-assignment>
+          <span class="school-text">{{ getSchoolDisplayName(assignment) }}</span>
+        </ng-template>
+
+        <!-- Template Filière -->
+        <ng-template #cellProgram let-assignment>
+          <span class="program-text">{{ getProgramDisplayName(assignment) }}</span>
+        </ng-template>
+
+        <!-- Template Rôle -->
+        <ng-template #cellRole let-assignment>
+          <app-role-badge [role]="assignment.role.code"></app-role-badge>
+        </ng-template>
+
+        <!-- Template Statut -->
+        <ng-template #cellStatus let-assignment>
+          <app-status-badge [status]="assignment.status"></app-status-badge>
+        </ng-template>
+
+        <!-- Template Actions -->
+        <ng-template #cellActions let-assignment>
+          <div class="actions-cell" (click)="$event.stopPropagation()">
+            <!-- Voir le détail -->
+            <button
+              class="action-icon-btn"
+              [title]="i18n.assignmentsPage.table.actions.viewDetail"
+              (click)="openDetail(assignment)"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+            </button>
+
+            @if (canManageAssignments) {
+              <!-- Modifier -->
+              <button
+                class="action-icon-btn"
+                [title]="i18n.assignmentsPage.table.actions.edit"
+                (click)="openEditModal(assignment)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+              </button>
+
+              <!-- Retirer (désactivé sur sa propre affectation d'admin) -->
+              <button
+                class="action-icon-btn danger"
+                [disabled]="isSelfAdmin(assignment)"
+                [title]="isSelfAdmin(assignment) ? i18n.assignmentsPage.removeDialog.selfAdminError : i18n.assignmentsPage.table.actions.remove"
+                (click)="openRemoveDialog(assignment)"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="1"></circle>
+                  <circle cx="19" cy="12" r="1"></circle>
+                  <circle cx="5" cy="12" r="1"></circle>
+                </svg>
+              </button>
+            }
+          </div>
+        </ng-template>
+      </app-data-table>
+    </section>
+  </div>
+
+  <!-- Panneau latéral de détails -->
+  <app-assignment-detail
+    [assignment]="detailAssignment()"
+    [isOpen]="isDetailOpen()"
+    [activeTab]="activeDetailTab()"
+    [canManageAssignments]="canManageAssignments"
+    [currentSessionUserId]="currentSessionUserId"
+    (closeDetail)="closeDetail()"
+    (editAssignment)="openEditModal($event)"
+    (removeAssignment)="openRemoveDialog($event)"
+  ></app-assignment-detail>
+
+  <!-- Modal Création / Édition -->
+  <app-assignment-form
+    #assignmentFormCmp
+    [isOpen]="isFormOpen()"
+    [assignment]="formAssignmentToEdit()"
+    [loading]="formLoading()"
+    [schools]="schoolsList()"
+    (formCancel)="closeFormModal()"
+    (formSubmit)="saveAssignmentForm($event)"
+  ></app-assignment-form>
+
+  <!-- Dialogue Retrait -->
+  <app-assignment-remove-dialog
+    [isOpen]="isRemoveDialogOpen()"
+    [assignment]="assignmentToRemove()"
+    [loading]="removeLoading()"
+    (dialogCancel)="closeRemoveDialog()"
+    (dialogConfirm)="confirmRemove($event)"
+  ></app-assignment-remove-dialog>
+</app-admin-layout>
+
