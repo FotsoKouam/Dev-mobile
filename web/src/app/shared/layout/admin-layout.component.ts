@@ -562,7 +562,11 @@ export class AdminLayoutComponent {
   }
 
   get canAccessDocuments(): boolean {
-    return this.sessionService.hasPermission('manage_documents');
+    return (
+      this.sessionService.hasPermission('manage_programs') ||
+      this.sessionService.hasPermission('add_document') ||
+      this.sessionService.hasPermission('create_institutional_space')
+    );
   }
 
   get canAccessAudit(): boolean {

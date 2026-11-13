@@ -45,6 +45,14 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'documents',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/documents/documents.component').then(
+        (m) => m.DocumentsComponent,
+      ),
+  },
+  {
     path: '**',
     redirectTo: 'login',
   },
