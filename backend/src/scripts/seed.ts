@@ -404,6 +404,78 @@ async function seed() {
 
     console.log(`Utilisateurs et affectations : ${processedUsers} utilisateurs, ${processedAssignments} affectations traitées.`);
 
+    // 6. Espaces institutionnels
+    interface SeedSpace {
+      schoolName: string;
+      programName: string;
+      name: string;
+      description?: string;
+    }
+
+    const spacesData: SeedSpace[] = [
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        programName: 'ISI',
+        name: 'Graphes et algorithmes',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        programName: 'ISI',
+        name: 'Architecture web avancée',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        programName: 'ISI',
+        name: 'Développement mobile',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        programName: 'ISI',
+        name: 'Bases de données',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        programName: 'SRT',
+        name: 'Réseaux',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        programName: 'SRT',
+        name: 'Systèmes Linux',
+      },
+    ];
+
+    let insertedSpaces = 0;
+    for (const s of spacesData) {
+      const progRes = await client.query<{ id: string }>(
+        `SELECT p.id FROM programs p
+         JOIN schools sc ON p.school_id = sc.id
+         WHERE sc.name = $1 AND p.name = $2`,
+        [s.schoolName, s.programName],
+      );
+
+      if (progRes.rows.length === 0) {
+        console.warn(`Filière ${s.programName} introuvable pour l'école ${s.schoolName}, espace ${s.name} ignoré.`);
+        continue;
+      }
+
+      const programId = progRes.rows[0].id;
+
+      const res = await client.query(
+        `INSERT INTO spaces (name, description, type, program_id, status)
+         VALUES ($1, $2, 'institutional', $3, 'active')
+         ON CONFLICT (program_id, name) DO NOTHING
+         RETURNING id;`,
+        [s.name, s.description ?? null, programId],
+      );
+
+      if (res.rowCount && res.rowCount > 0) {
+        insertedSpaces++;
+      }
+    }
+
+    console.log(`Espaces institutionnels : ${spacesData.length} configurés, ${insertedSpaces} nouvellement insérés.`);
+
     console.log('Seed terminé avec succès !');
     await client.end();
     process.exit(0);

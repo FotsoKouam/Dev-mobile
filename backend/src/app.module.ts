@@ -9,6 +9,7 @@ import { ProgramsModule } from './programs/programs.module.js';
 import { RolesModule } from './roles/roles.module.js';
 import { UsersModule } from './users/users.module.js';
 import { AssignmentsModule } from './assignments/assignments.module.js';
+import { SpacesModule } from './spaces/spaces.module.js';
 import { AuthModule } from './auth/auth.module.js';
 
 @Module({
@@ -40,6 +41,7 @@ import { AuthModule } from './auth/auth.module.js';
     RolesModule,
     UsersModule,
     AssignmentsModule,
+    SpacesModule,
     AuthModule,
   ],
   controllers: [AppController],
