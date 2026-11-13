@@ -1,0 +1,195 @@
+<app-admin-layout
+  [pageTitle]="i18n.documentsPage.title"
+  [pageSubtitle]="i18n.documentsPage.subtitle"
+>
+  <div class="documents-page">
+    <!-- 4 Cartes de statistiques (pas de backend documents/stats -> valeur "—" sans appel) -->
+    <section class="stats-grid">
+      <app-stat-card
+        [label]="i18n.documentsPage.stats.total"
+        value="—"
+        icon="school"
+        [loading]="false"
+      ></app-stat-card>
+
+      <app-stat-card
+        [label]="i18n.documentsPage.stats.available"
+        value="—"
+        icon="user"
+        [loading]="false"
+      ></app-stat-card>
+
+      <app-stat-card
+        [label]="i18n.documentsPage.stats.processing"
+        value="—"
+        icon="program"
+        [loading]="false"
+      ></app-stat-card>
+
+      <app-stat-card
+        [label]="i18n.documentsPage.stats.error"
+        value="—"
+        icon="school"
+        [loading]="false"
+      ></app-stat-card>
+    </section>
+
+    <!-- Barre d'actions et filtres -->
+    <section class="filter-action-bar">
+      <div class="filters-group">
+        <!-- Recherche nom document (désactivée, bientôt disponible) -->
+        <div class="search-field-container" [title]="i18n.documentsPage.filters.searchTooltip">
+          <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
+            <path
+              fill-rule="evenodd"
+              d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
+              clip-rule="evenodd"
+            />
+          </svg>
+          <input
+            type="text"
+            class="search-input"
+            [placeholder]="i18n.documentsPage.filters.searchPlaceholder"
+            disabled
+          />
+        </div>
+
+        <!-- Filtre École (réel) -->
+        <select
+          class="filter-select"
+          [ngModel]="selectedSchoolId()"
+          (ngModelChange)="onSchoolFilterChange($event)"
+        >
+          <option value="">{{ i18n.documentsPage.filters.allSchools }}</option>
+          @for (school of schools(); track school.id) {
+            <option [value]="school.id">{{ school.name }}</option>
+          }
+        </select>
+
+        <!-- Filtre Filière (réel, activé si école sélectionnée) -->
+        <select
+          class="filter-select"
+          [ngModel]="selectedProgramId()"
+          (ngModelChange)="onProgramFilterChange($event)"
+          [disabled]="!selectedSchoolId() || loadingPrograms()"
+        >
+          <option value="">{{ i18n.documentsPage.filters.allPrograms }}</option>
+          @for (prog of programs(); track prog.id) {
+            <option [value]="prog.id">{{ prog.name }}</option>
+          }
+        </select>
+
+        <!-- Filtre Espace (réel, activé si filière sélectionnée) -->
+        <select
+          class="filter-select"
+          [ngModel]="selectedSpaceId()"
+          (ngModelChange)="onSpaceFilterChange($event)"
+          [disabled]="!selectedProgramId() || loadingSpaces()"
+        >
+          <option value="">{{ i18n.documentsPage.filters.allSpaces }}</option>
+          @for (space of spaces(); track space.id) {
+            <option [value]="space.id">{{ space.name }}</option>
+          }
+        </select>
+
+        <!-- Filtre Type (désactivé, bientôt disponible) -->
+        <select
+          class="filter-select disabled-filter"
+          disabled
+          [title]="i18n.documentsPage.filters.disabledTooltip"
+        >
+          <option>{{ i18n.documentsPage.filters.allTypes }}</option>
+          <option>{{ i18n.documentsPage.filters.typePdf }}</option>
+          <option>{{ i18n.documentsPage.filters.typeScannedPdf }}</option>
+          <option>{{ i18n.documentsPage.filters.typeImage }}</option>
+        </select>
+
+        <!-- Filtre Statut (désactivé, bientôt disponible) -->
+        <select
+          class="filter-select disabled-filter"
+          disabled
+          [title]="i18n.documentsPage.filters.disabledTooltip"
+        >
+          <option>{{ i18n.documentsPage.filters.allStatuses }}</option>
+          <option>{{ i18n.documentsPage.filters.statusPending }}</option>
+          <option>{{ i18n.documentsPage.filters.statusOcr }}</option>
+          <option>{{ i18n.documentsPage.filters.statusSegmentation }}</option>
+          <option>{{ i18n.documentsPage.filters.statusIndexing }}</option>
+          <option>{{ i18n.documentsPage.filters.statusAvailable }}</option>
+          <option>{{ i18n.documentsPage.filters.statusError }}</option>
+        </select>
+      </div>
+
+      <!-- Actions à droite -->
+      <div class="actions-group">
+        @if (canAddDocument) {
+          <button
+            type="button"
+            class="btn btn-primary"
+            disabled
+            [title]="i18n.common.comingSoon"
+          >
+            {{ i18n.documentsPage.actions.addDocument }}
+          </button>
+        }
+
+        @if (canCreateInstitutionalSpace) {
+          <button
+            type="button"
+            class="btn btn-secondary"
+            (click)="openCreateSpaceModal()"
+          >
+            {{ i18n.documentsPage.actions.createSpace }}
+          </button>
+        }
+      </div>
+    </section>
+
+    <!-- Tableau : structure prête avec les colonnes demandées et état vide honnête -->
+    <section class="table-card">
+      <div class="documents-table-wrapper">
+        <table class="documents-table">
+          <thead>
+            <tr>
+              <th class="th-checkbox"><input type="checkbox" disabled /></th>
+              <th>{{ i18n.documentsPage.table.documentName }}</th>
+              <th>{{ i18n.documentsPage.table.type }}</th>
+              <th>{{ i18n.documentsPage.table.school }}</th>
+              <th>{{ i18n.documentsPage.table.program }}</th>
+              <th>{{ i18n.documentsPage.table.space }}</th>
+              <th>{{ i18n.documentsPage.table.version }}</th>
+              <th>{{ i18n.documentsPage.table.status }}</th>
+              <th>{{ i18n.documentsPage.table.addedBy }}</th>
+              <th>{{ i18n.documentsPage.table.addedAt }}</th>
+              <th class="th-actions">{{ i18n.documentsPage.table.actions }}</th>
+            </tr>
+          </thead>
+        </table>
+      </div>
+
+      <!-- État vide explicite tant que le backend Documents n'existe pas -->
+      <div class="empty-table-container">
+        <app-empty-state
+          [title]="i18n.documentsPage.table.emptyWaiting"
+          description="Aucun document n’est disponible pour le moment. La consultation, l’ajout et le remplacement de documents seront activés avec le module Documents."
+        ></app-empty-state>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal Création d'un espace institutionnel -->
+  <app-space-form
+    [isOpen]="isCreateSpaceModalOpen()"
+    [initialSchoolId]="selectedSchoolId()"
+    [initialProgramId]="selectedProgramId()"
+    (formClosed)="isCreateSpaceModalOpen.set(false)"
+    (spaceSaved)="onSpaceCreated($event)"
+  ></app-space-form>
+
+  <!-- Panneau latéral de détail d'un document (pour l'avenir) -->
+  <app-document-detail
+    [isOpen]="isDetailPanelOpen()"
+    (panelClosed)="isDetailPanelOpen.set(false)"
+  ></app-document-detail>
+</app-admin-layout>
+

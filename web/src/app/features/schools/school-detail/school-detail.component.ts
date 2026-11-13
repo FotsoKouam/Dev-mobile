@@ -16,7 +16,11 @@ import { DataTableComponent, ColumnDef } from '../../../shared/ui/data-table/dat
 import { EmptyStateComponent } from '../../../shared/ui/empty-state/empty-state.component';
 import { ModalComponent } from '../../../shared/ui/modal/modal.component';
 import { SchoolsApiService } from '../../../core/api/schools-api.service';
+import { SpacesApiService } from '../../../core/api/spaces-api.service';
 import { School, Program, Page, PageMeta } from '../../../core/api/models/school.model';
+import { Space } from '../../../core/api/models/space.model';
+import { SpaceFormComponent } from '../../../shared/ui/space-form/space-form.component';
+import { SessionService } from '../../../core/session.service';
 import { I18N_FR } from '../../../shared/i18n/fr';
 
 export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
@@ -31,6 +35,7 @@ export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
     TypeBadgeComponent,
     EmptyStateComponent,
     ModalComponent,
+    SpaceFormComponent,
   ],
   template: `
     @if (school) {
@@ -262,70 +267,12 @@ export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
                   <div class="prog-info-texts">
                     <div class="prog-name-pill-row">
                       <span class="prog-name-bold">{{ selectedProgram()!.name }}</span>
-                      <span class="spaces-pill">{{ selectedProgram()!.spacesCount }} espaces institutionnels</span>
                     </div>
                   </div>
                   <div class="prog-users-stat">
                     <div class="prog-users-val">{{ selectedProgram()!.usersCount }} utilisateurs</div>
                     <div class="prog-users-sub">(Personnel et Étudiants)</div>
                   </div>
-                </div>
-
-                <!-- Sous-section Espaces institutionnels de la filière -->
-                <div class="spaces-sub-section">
-                  <div class="spaces-sub-title">Espaces institutionnels de la filière</div>
-                  <div class="spaces-mini-table">
-                    <div class="spaces-table-header">
-                      <span>Nom de l'espace</span>
-                      <span>Nombre de documents</span>
-                      <span>Statut</span>
-                      <span class="text-right">Actions</span>
-                    </div>
-                    <!-- Liste des espaces de la filière ou place-holder représentatif -->
-                    <div class="spaces-table-row">
-                      <span class="space-row-name">Graphes et algorithmes</span>
-                      <span class="space-row-docs">— documents</span>
-                      <span class="space-row-status">À renseigner</span>
-                      <span class="space-row-actions">
-                        <button class="action-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
-                        <button class="action-icon-btn"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/></svg></button>
-                      </span>
-                    </div>
-                    <div class="spaces-table-row">
-                      <span class="space-row-name">Architecture web avancée</span>
-                      <span class="space-row-docs">— documents</span>
-                      <span class="space-row-status">À renseigner</span>
-                      <span class="space-row-actions">
-                        <button class="action-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
-                        <button class="action-icon-btn"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/></svg></button>
-                      </span>
-                    </div>
-                    <div class="spaces-table-row">
-                      <span class="space-row-name">Développement mobile</span>
-                      <span class="space-row-docs">— documents</span>
-                      <span class="space-row-status">À renseigner</span>
-                      <span class="space-row-actions">
-                        <button class="action-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
-                        <button class="action-icon-btn"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/></svg></button>
-                      </span>
-                    </div>
-                    <div class="spaces-table-row">
-                      <span class="space-row-name">Bases de données</span>
-                      <span class="space-row-docs">— documents</span>
-                      <span class="space-row-status">À renseigner</span>
-                      <span class="space-row-actions">
-                        <button class="action-icon-btn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
-                        <button class="action-icon-btn"><svg viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zM12 10a2 2 0 11-4 0 2 2 0 014 0zM16 12a2 2 0 100-4 2 2 0 000 4z"/></svg></button>
-                      </span>
-                    </div>
-                  </div>
-
-                  <button class="btn btn-primary btn-block-create" title="Bientôt disponible">
-                    <svg viewBox="0 0 20 20" fill="currentColor" class="plus-icon">
-                      <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
-                    </svg>
-                    Créer un espace institutionnel
-                  </button>
                 </div>
               </div>
             }
@@ -342,13 +289,62 @@ export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
           </div>
         }
 
-        <!-- Contenu Onglet Espaces -->
+        <!-- Contenu Onglet Espaces (réel) -->
         @if (activeTab === 'spaces') {
-          <div class="tab-pane">
-            <app-empty-state
-              [title]="i18n.common.comingSoon"
-              description="La gestion des espaces sera disponible dans une prochaine tranche."
-            ></app-empty-state>
+          <div class="tab-pane spaces-pane">
+            <div class="spaces-pane-header">
+              <span class="spaces-pane-title">Espaces institutionnels de l’école</span>
+              @if (canCreateInstitutionalSpace) {
+                <button
+                  type="button"
+                  class="btn btn-sm btn-primary"
+                  (click)="openCreateSpaceModal()"
+                >
+                  + Créer un espace
+                </button>
+              }
+            </div>
+
+            @if (loadingSpaces()) {
+              <div class="skeleton-box">
+                {{ i18n.common.loading }}
+              </div>
+            } @else if (schoolSpaces().length === 0) {
+              <app-empty-state
+                title="Aucun espace institutionnel pour cette école."
+                description="Les espaces institutionnels regroupent les documents de chaque filière."
+              ></app-empty-state>
+            } @else {
+              <div class="school-spaces-list">
+                @for (sp of schoolSpaces(); track sp.id) {
+                  <div class="school-space-row">
+                    <div class="space-main-info">
+                      <span class="space-title">{{ sp.name }}</span>
+                      <div class="space-meta-line">
+                        <span class="space-prog-badge">{{ sp.program?.name }}</span>
+                        <span class="space-docs-count">— documents</span>
+                      </div>
+                    </div>
+                    <div class="space-row-right">
+                      <app-status-badge [status]="sp.status"></app-status-badge>
+                      @if (canCreateInstitutionalSpace) {
+                        <button
+                          type="button"
+                          class="action-icon-btn"
+                          title="Modifier l'espace"
+                          (click)="openEditSpaceModal(sp)"
+                        >
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                }
+              </div>
+            }
           </div>
         }
       </app-side-panel>
@@ -372,6 +368,15 @@ export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
           </button>
         </div>
       </app-modal>
+
+      <!-- Modal Création/Modification d'espace institutionnel -->
+      <app-space-form
+        [isOpen]="showSpaceModal()"
+        [spaceToEdit]="spaceToEdit()"
+        [initialSchoolId]="school.id"
+        (formClosed)="showSpaceModal.set(false)"
+        (spaceSaved)="onSpaceSaved()"
+      ></app-space-form>
     }
   `,
   styles: [`
@@ -799,6 +804,8 @@ export class SchoolDetailComponent implements OnChanges {
   @Output() editProgram = new EventEmitter<Program>();
 
   private readonly api = inject(SchoolsApiService);
+  private readonly spacesApi = inject(SpacesApiService);
+  private readonly sessionService = inject(SessionService);
   readonly i18n = I18N_FR;
 
   readonly programs = signal<Program[]>([]);
@@ -806,13 +813,23 @@ export class SchoolDetailComponent implements OnChanges {
   readonly loadingPrograms = signal<boolean>(false);
   readonly selectedProgram = signal<Program | null>(null);
 
+  readonly schoolSpaces = signal<Space[]>([]);
+  readonly loadingSpaces = signal<boolean>(false);
+  readonly showSpaceModal = signal<boolean>(false);
+  readonly spaceToEdit = signal<Space | null>(null);
+
   readonly showDeactivateConfirm = signal<boolean>(false);
 
   // Identifiant de l'école dont les filières sont en cours de chargement
   private currentProgramSchoolId?: string;
+  private currentSpaceSchoolId?: string;
+
+  get canCreateInstitutionalSpace(): boolean {
+    return this.sessionService.hasPermission('create_institutional_space');
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
-    // Réinitialiser les filières quand on change d'école
+    // Réinitialiser les filières et espaces quand on change d'école
     if (changes['school']) {
       const prevId = changes['school'].previousValue?.id;
       const newId = changes['school'].currentValue?.id;
@@ -821,12 +838,17 @@ export class SchoolDetailComponent implements OnChanges {
         this.selectedProgram.set(null);
         this.programsMeta.set(undefined);
         this.currentProgramSchoolId = undefined;
+        this.schoolSpaces.set([]);
+        this.spaceToEdit.set(null);
+        this.currentSpaceSchoolId = undefined;
       }
     }
 
     if (this.isOpen && this.school) {
       if (this.activeTab === 'programs') {
         this.loadPrograms();
+      } else if (this.activeTab === 'spaces') {
+        this.loadSchoolSpaces();
       }
     }
   }
@@ -836,7 +858,44 @@ export class SchoolDetailComponent implements OnChanges {
     this.tabChange.emit(tab);
     if (tab === 'programs' && this.school) {
       this.loadPrograms();
+    } else if (tab === 'spaces' && this.school) {
+      this.loadSchoolSpaces();
     }
+  }
+
+  loadSchoolSpaces(): void {
+    if (!this.school) return;
+    if (this.loadingSpaces() && this.currentSpaceSchoolId === this.school.id) return;
+
+    this.loadingSpaces.set(true);
+    this.currentSpaceSchoolId = this.school.id;
+    this.spacesApi.getSpaces({ schoolId: this.school.id, limit: 50 }).subscribe({
+      next: (page) => {
+        this.schoolSpaces.set(page.data || []);
+        this.loadingSpaces.set(false);
+      },
+      error: (err) => {
+        console.error('Erreur chargement des espaces:', err);
+        this.schoolSpaces.set([]);
+        this.loadingSpaces.set(false);
+      },
+    });
+  }
+
+  openCreateSpaceModal(): void {
+    this.spaceToEdit.set(null);
+    this.showSpaceModal.set(true);
+  }
+
+  openEditSpaceModal(space: Space): void {
+    this.spaceToEdit.set(space);
+    this.showSpaceModal.set(true);
+  }
+
+  onSpaceSaved(): void {
+    this.showSpaceModal.set(false);
+    this.currentSpaceSchoolId = undefined;
+    this.loadSchoolSpaces();
   }
 
   loadPrograms(): void {
