@@ -28,6 +28,8 @@ Les variables d'environnement du backend sont configurées dans `backend/.env` (
 - `JWT_ACCESS_TTL` : Durée de validité des jetons d'accès (ex. `15m`).
 - `JWT_REFRESH_TTL` : Durée de validité des jetons de rafraîchissement (ex. `7d`).
 - `ADMIN_SEED_PASSWORD` : Mot de passe initial utilisé uniquement par le script de seed pour initialiser les administrateurs.
+- `STORAGE_PATH` : Chemin local du dossier de stockage des documents (défaut : `./storage`).
+- `MAX_UPLOAD_MB` : Taille maximale par fichier téléversé en Mo (défaut : `20`).
 
 ## Périmètre
 
