@@ -63,9 +63,85 @@
   border: 1px solid #d8dee8;
   border-radius: 6px;
   font-size: 13.5px;
-  background-color: #f8fafc;
-  color: #94a3b8;
-  cursor: not-allowed;
+  background-color: #ffffff;
+  color: #1b2a4a;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.search-input:focus {
+  border-color: #2f6fed;
+}
+
+.doc-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: #f1f5f9;
+  color: #3b82f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.file-icon svg {
+  width: 18px;
+  height: 18px;
+}
+
+.file-icon[data-type="image"] {
+  background-color: #f0fdf4;
+  color: #16a34a;
+}
+
+.doc-name-text {
+  color: #1e293b;
+}
+
+.badge-type-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: #e2e8f0;
+  color: #334155;
+}
+
+.version-badge {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748b;
+}
+
+.action-icon-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #64748b;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.action-icon-btn:hover {
+  color: #1e293b;
+  background-color: #f1f5f9;
+}
+
+.action-icon-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .filter-select {

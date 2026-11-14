@@ -3,42 +3,42 @@
   [pageSubtitle]="i18n.documentsPage.subtitle"
 >
   <div class="documents-page">
-    <!-- 4 Cartes de statistiques (pas de backend documents/stats -> valeur "—" sans appel) -->
+    <!-- 4 Cartes de statistiques branchées sur GET /api/documents/stats -->
     <section class="stats-grid">
       <app-stat-card
         [label]="i18n.documentsPage.stats.total"
-        value="—"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.total : (loadingStats() ? 0 : 0))"
         icon="school"
-        [loading]="false"
+        [loading]="loadingStats()"
       ></app-stat-card>
 
       <app-stat-card
         [label]="i18n.documentsPage.stats.available"
-        value="—"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.available : (loadingStats() ? 0 : 0))"
         icon="user"
-        [loading]="false"
+        [loading]="loadingStats()"
       ></app-stat-card>
 
       <app-stat-card
         [label]="i18n.documentsPage.stats.processing"
-        value="—"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.processing : (loadingStats() ? 0 : 0))"
         icon="program"
-        [loading]="false"
+        [loading]="loadingStats()"
       ></app-stat-card>
 
       <app-stat-card
         [label]="i18n.documentsPage.stats.error"
-        value="—"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.error : (loadingStats() ? 0 : 0))"
         icon="school"
-        [loading]="false"
+        [loading]="loadingStats()"
       ></app-stat-card>
     </section>
 
-    <!-- Barre d'actions et filtres -->
+    <!-- Barre d'actions et filtres réels -->
     <section class="filter-action-bar">
       <div class="filters-group">
-        <!-- Recherche nom document (désactivée, bientôt disponible) -->
-        <div class="search-field-container" [title]="i18n.documentsPage.filters.searchTooltip">
+        <!-- Recherche nom document (active) -->
+        <div class="search-field-container">
           <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
             <path
               fill-rule="evenodd"
@@ -50,7 +50,8 @@
             type="text"
             class="search-input"
             [placeholder]="i18n.documentsPage.filters.searchPlaceholder"
-            disabled
+            [ngModel]="searchQuery()"
+            (ngModelChange)="onSearchInput($event)"
           />
         </div>
 
@@ -92,31 +93,31 @@
           }
         </select>
 
-        <!-- Filtre Type (désactivé, bientôt disponible) -->
+        <!-- Filtre Type (actif) -->
         <select
-          class="filter-select disabled-filter"
-          disabled
-          [title]="i18n.documentsPage.filters.disabledTooltip"
+          class="filter-select"
+          [ngModel]="selectedFileType()"
+          (ngModelChange)="onFileTypeFilterChange($event)"
         >
-          <option>{{ i18n.documentsPage.filters.allTypes }}</option>
-          <option>{{ i18n.documentsPage.filters.typePdf }}</option>
-          <option>{{ i18n.documentsPage.filters.typeScannedPdf }}</option>
-          <option>{{ i18n.documentsPage.filters.typeImage }}</option>
+          <option value="">{{ i18n.documentsPage.filters.allTypes }}</option>
+          <option value="pdf">{{ i18n.documentsPage.filters.typePdf }}</option>
+          <option value="scanned_pdf">{{ i18n.documentsPage.filters.typeScannedPdf }}</option>
+          <option value="image">{{ i18n.documentsPage.filters.typeImage }}</option>
         </select>
 
-        <!-- Filtre Statut (désactivé, bientôt disponible) -->
+        <!-- Filtre Statut (actif) -->
         <select
-          class="filter-select disabled-filter"
-          disabled
-          [title]="i18n.documentsPage.filters.disabledTooltip"
+          class="filter-select"
+          [ngModel]="selectedStatus()"
+          (ngModelChange)="onStatusFilterChange($event)"
         >
-          <option>{{ i18n.documentsPage.filters.allStatuses }}</option>
-          <option>{{ i18n.documentsPage.filters.statusPending }}</option>
-          <option>{{ i18n.documentsPage.filters.statusOcr }}</option>
-          <option>{{ i18n.documentsPage.filters.statusSegmentation }}</option>
-          <option>{{ i18n.documentsPage.filters.statusIndexing }}</option>
-          <option>{{ i18n.documentsPage.filters.statusAvailable }}</option>
-          <option>{{ i18n.documentsPage.filters.statusError }}</option>
+          <option value="">{{ i18n.documentsPage.filters.allStatuses }}</option>
+          <option value="pending">{{ i18n.documentsPage.filters.statusPending }}</option>
+          <option value="ocr">{{ i18n.documentsPage.filters.statusOcr }}</option>
+          <option value="segmentation">{{ i18n.documentsPage.filters.statusSegmentation }}</option>
+          <option value="indexing">{{ i18n.documentsPage.filters.statusIndexing }}</option>
+          <option value="available">{{ i18n.documentsPage.filters.statusAvailable }}</option>
+          <option value="error">{{ i18n.documentsPage.filters.statusError }}</option>
         </select>
       </div>
 
@@ -126,8 +127,7 @@
           <button
             type="button"
             class="btn btn-primary"
-            disabled
-            [title]="i18n.common.comingSoon"
+            (click)="openUploadModal()"
           >
             {{ i18n.documentsPage.actions.addDocument }}
           </button>
@@ -145,37 +145,89 @@
       </div>
     </section>
 
-    <!-- Tableau : structure prête avec les colonnes demandées et état vide honnête -->
+    <!-- Tableau alimenté par GET /api/documents -->
     <section class="table-card">
-      <div class="documents-table-wrapper">
-        <table class="documents-table">
-          <thead>
-            <tr>
-              <th class="th-checkbox"><input type="checkbox" disabled /></th>
-              <th>{{ i18n.documentsPage.table.documentName }}</th>
-              <th>{{ i18n.documentsPage.table.type }}</th>
-              <th>{{ i18n.documentsPage.table.school }}</th>
-              <th>{{ i18n.documentsPage.table.program }}</th>
-              <th>{{ i18n.documentsPage.table.space }}</th>
-              <th>{{ i18n.documentsPage.table.version }}</th>
-              <th>{{ i18n.documentsPage.table.status }}</th>
-              <th>{{ i18n.documentsPage.table.addedBy }}</th>
-              <th>{{ i18n.documentsPage.table.addedAt }}</th>
-              <th class="th-actions">{{ i18n.documentsPage.table.actions }}</th>
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      <!-- État vide explicite tant que le backend Documents n'existe pas -->
-      <div class="empty-table-container">
-        <app-empty-state
-          [title]="i18n.documentsPage.table.emptyWaiting"
-          description="Aucun document n’est disponible pour le moment. La consultation, l’ajout et le remplacement de documents seront activés avec le module Documents."
-        ></app-empty-state>
-      </div>
+      @if (documents().length === 0 && !loadingDocuments()) {
+        <div class="empty-table-container">
+          <app-empty-state
+            [title]="i18n.documentsPage.table.emptyReal"
+            [actionLabel]="canAddDocument ? i18n.documentsPage.actions.addDocument : undefined"
+            (action)="openUploadModal()"
+          ></app-empty-state>
+        </div>
+      } @else {
+        <app-data-table
+          [data]="documents()"
+          [columns]="columns"
+          [loading]="loadingDocuments()"
+          [selectable]="true"
+          [clickable]="true"
+          [meta]="paginationMeta"
+          (pageChange)="onPageChange($event)"
+          (rowClick)="openDocumentDetail($event)"
+        ></app-data-table>
+      }
     </section>
   </div>
+
+  <!-- Templates pour les colonnes DataTable -->
+  <ng-template #docNameTpl let-item>
+    <div class="doc-name-cell">
+      <span class="file-icon" [attr.data-type]="item.fileType">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+      </span>
+      <span class="doc-name-text font-medium">{{ item.name }}</span>
+    </div>
+  </ng-template>
+
+  <ng-template #docTypeTpl let-item>
+    <span class="badge-type-pill">{{ item.fileType.toUpperCase() }}</span>
+  </ng-template>
+
+  <ng-template #docSchoolTpl let-item>
+    <span>{{ item.school?.name || '—' }}</span>
+  </ng-template>
+
+  <ng-template #docProgramTpl let-item>
+    <span>{{ item.program?.name || '—' }}</span>
+  </ng-template>
+
+  <ng-template #docSpaceTpl let-item>
+    <span>{{ item.space.name }}</span>
+  </ng-template>
+
+  <ng-template #docVersionTpl let-item>
+    <span class="version-badge">v{{ item.version }}</span>
+  </ng-template>
+
+  <ng-template #docStatusTpl let-item>
+    <app-status-badge [status]="item.status"></app-status-badge>
+  </ng-template>
+
+  <ng-template #docAddedByTpl let-item>
+    <span>{{ item.uploadedBy.name }}</span>
+  </ng-template>
+
+  <ng-template #docDateTpl let-item>
+    <span>{{ formatDate(item.createdAt) }}</span>
+  </ng-template>
+
+  <ng-template #docActionsTpl let-item>
+    <button
+      type="button"
+      class="action-icon-btn"
+      title="Voir le détail"
+      (click)="$event.stopPropagation(); openDocumentDetail(item)"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+    </button>
+  </ng-template>
 
   <!-- Modal Création d'un espace institutionnel -->
   <app-space-form
@@ -186,10 +238,19 @@
     (spaceSaved)="onSpaceCreated($event)"
   ></app-space-form>
 
-  <!-- Panneau latéral de détail d'un document (pour l'avenir) -->
+  <!-- Modal Upload Document -->
+  <app-document-upload
+    [isOpen]="isUploadModalOpen()"
+    [initialSpaceId]="selectedSpaceId()"
+    [preloadedSpaces]="spaces()"
+    (modalClosed)="isUploadModalOpen.set(false)"
+    (documentUploaded)="onDocumentUploaded($event)"
+  ></app-document-upload>
+
+  <!-- Panneau latéral de détail d'un document -->
   <app-document-detail
     [isOpen]="isDetailPanelOpen()"
+    [document]="selectedDocument()"
     (panelClosed)="isDetailPanelOpen.set(false)"
   ></app-document-detail>
 </app-admin-layout>
-
