@@ -19,7 +19,7 @@ npm-debug.log*
 Thumbs.db
 
 # storage
-storage/
+/storage/
 
 # IDE
 .vscode/
