@@ -53,6 +53,12 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'audit',
+    canActivate: [authGuard],
+    loadComponent: () =>
+      import('./features/audit/audit.component').then((m) => m.AuditComponent),
+  },
+  {
     path: '**',
     redirectTo: 'login',
   },
