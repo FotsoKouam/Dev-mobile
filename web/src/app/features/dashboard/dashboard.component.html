@@ -1,0 +1,334 @@
+<app-admin-layout
+  [pageTitle]="i18n.dashboard.title"
+  [pageSubtitle]="i18n.dashboard.subtitle"
+  pageIcon="shield"
+  [searchDisabled]="true"
+  [searchDisabledTooltip]="i18n.dashboard.searchTooltip"
+  [searchPlaceholder]="i18n.dashboard.searchPlaceholder"
+>
+  <div class="dashboard-container">
+    <!-- 1. Cartes de statistiques du haut -->
+    <section class="stats-row" aria-label="Statistiques principales">
+      @if (showSchoolsCard()) {
+        <app-stat-card
+          [label]="i18n.dashboard.stats.activeSchools"
+          [value]="errorSchoolStats() ? '—' : (schoolStats()?.schools?.active ?? '—')"
+          [subtext]="errorSchoolStats() ? '—' : (schoolStats() ? i18n.dashboard.stats.totalSchoolsSuffix(schoolStats()!.schools.total) : '')"
+          [loading]="loadingSchoolStats()"
+          icon="school"
+        ></app-stat-card>
+      }
+
+      @if (showProgramsCard()) {
+        <app-stat-card
+          [label]="i18n.dashboard.stats.activePrograms"
+          [value]="errorSchoolStats() ? '—' : (schoolStats()?.programs?.active ?? '—')"
+          [subtext]="errorSchoolStats() ? '—' : (schoolStats() ? i18n.dashboard.stats.totalProgramsSuffix(schoolStats()!.programs.total) : '')"
+          [loading]="loadingSchoolStats()"
+          icon="program"
+        ></app-stat-card>
+      }
+
+      @if (showUsersCard()) {
+        <app-stat-card
+          [label]="i18n.dashboard.stats.activeUsers"
+          [value]="errorUserStats() ? '—' : (userStats()?.users?.active ?? '—')"
+          [subtext]="errorUserStats() ? '—' : (userStats() ? i18n.dashboard.stats.totalUsersSuffix(userStats()!.users.total) : '')"
+          [loading]="loadingUserStats()"
+          icon="user"
+        ></app-stat-card>
+      }
+
+      @if (showSpacesCard()) {
+        <app-stat-card
+          [label]="i18n.dashboard.stats.institutionalSpaces"
+          [value]="errorSpaces() ? '—' : (spacesTotal() ?? '—')"
+          [subtext]="errorSpaces() ? '—' : (spacesTotal() !== null ? i18n.dashboard.stats.totalSpacesSuffix(spacesTotal()!) : '')"
+          [loading]="loadingSpaces()"
+          icon="space"
+        ></app-stat-card>
+      }
+
+      @if (showDocumentsCard()) {
+        <app-stat-card
+          [label]="i18n.dashboard.stats.indexedDocuments"
+          [value]="errorDocStats() ? '—' : (docStats()?.available ?? '—')"
+          [subtext]="errorDocStats() ? '—' : (docStats() ? i18n.dashboard.stats.documentsStatusNotice(docStats()!.processing, docStats()!.error) : '')"
+          [loading]="loadingDocStats()"
+          icon="document"
+        ></app-stat-card>
+      }
+    </section>
+
+    <!-- 2. Ligne centrale : Alertes récentes (EmptyState) + Activité récente + Raccourcis -->
+    <div class="middle-grid">
+      <!-- Alertes récentes : Absent (EmptyState) -->
+      <section class="dashboard-card alerts-section" aria-label="Alertes récentes">
+        <div class="card-header">
+          <div class="card-header-left">
+            <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+              <path d="M13.73 21a2 2 0 01-3.46 0"></path>
+            </svg>
+            <h2 class="card-title">{{ i18n.dashboard.alerts.title }}</h2>
+          </div>
+          <button class="view-all-btn disabled" disabled type="button">
+            {{ i18n.dashboard.alerts.viewAll }}
+          </button>
+        </div>
+        <div class="card-body centered">
+          <app-empty-state
+            [title]="i18n.dashboard.alerts.emptyTitle"
+          ></app-empty-state>
+        </div>
+      </section>
+
+      <!-- Activité récente -->
+      @if (showActivity()) {
+        <section class="dashboard-card activity-section" aria-label="Activité récente">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <h2 class="card-title">{{ i18n.dashboard.activity.title }}</h2>
+            </div>
+            <a routerLink="/audit" class="view-all-link">
+              {{ i18n.dashboard.activity.viewAll }}
+            </a>
+          </div>
+          <div class="card-body">
+            @if (loadingActivity()) {
+              <div class="loading-placeholder">
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+              </div>
+            } @else if (errorActivity()) {
+              <div class="error-notice">—</div>
+            } @else if (recentActivity().length === 0) {
+              <div class="empty-notice">{{ i18n.dashboard.activity.empty }}</div>
+            } @else {
+              <ul class="activity-list">
+                @for (item of recentActivity(); track item.id) {
+                  <li class="activity-item">
+                    <div class="activity-avatar">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="12" cy="7" r="4"></circle>
+                      </svg>
+                    </div>
+                    <div class="activity-content">
+                      <div class="activity-desc">
+                        <span class="activity-user">{{ getUserDisplay(item.user) }}</span>
+                        <span class="activity-action-label">{{ getActionLabel(item.action) }}</span>
+                      </div>
+                      <div class="activity-time">{{ formatDate(item.createdAt) }}</div>
+                    </div>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Raccourcis rapides -->
+      <section class="dashboard-card shortcuts-section" aria-label="Raccourcis rapides">
+        <div class="card-header">
+          <div class="card-header-left">
+            <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <h2 class="card-title">{{ i18n.dashboard.shortcuts.title }}</h2>
+          </div>
+        </div>
+        <div class="card-body shortcuts-grid">
+          @if (canManageSchools()) {
+            <a routerLink="/schools" class="shortcut-btn">
+              <div class="shortcut-icon icon-school">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M3 21h18M3 7v14M21 7v14M6 21V11M18 21V11M12 21V11M3 7l9-4 9 4"></path>
+                </svg>
+              </div>
+              <span class="shortcut-label">{{ i18n.dashboard.shortcuts.newSchool }}</span>
+            </a>
+          }
+
+          @if (canManageUsers()) {
+            <a routerLink="/users" class="shortcut-btn">
+              <div class="shortcut-icon icon-user">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                  <circle cx="8.5" cy="7" r="4"></circle>
+                  <line x1="20" y1="8" x2="20" y2="14"></line>
+                  <line x1="23" y1="11" x2="17" y2="11"></line>
+                </svg>
+              </div>
+              <span class="shortcut-label">{{ i18n.dashboard.shortcuts.newUser }}</span>
+            </a>
+          }
+
+          @if (canManagePrograms()) {
+            <a routerLink="/schools" class="shortcut-btn">
+              <div class="shortcut-icon icon-program">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="18" r="3"></circle>
+                  <circle cx="6" cy="6" r="3"></circle>
+                  <path d="M13 6h3a2 2 0 0 1 2 2v7M6 9v12"></path>
+                </svg>
+              </div>
+              <span class="shortcut-label">{{ i18n.dashboard.shortcuts.addProgram }}</span>
+            </a>
+          }
+
+          @if (canCreateSpace()) {
+            <a routerLink="/documents" class="shortcut-btn">
+              <div class="shortcut-icon icon-space">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+              </div>
+              <span class="shortcut-label">{{ i18n.dashboard.shortcuts.createSpace }}</span>
+            </a>
+          }
+        </div>
+      </section>
+    </div>
+
+    <!-- 3. Ligne basse : Évolution activité (EmptyState) + Répartition des rôles + Aperçu des écoles -->
+    <div class="bottom-grid">
+      <!-- Évolution de l'activité (Absent) -->
+      <section class="dashboard-card evolution-section" aria-label="Évolution de l'activité">
+        <div class="card-header">
+          <div class="card-header-left">
+            <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="16" y1="2" x2="16" y2="6"></line>
+              <line x1="8" y1="2" x2="8" y2="6"></line>
+              <line x1="3" y1="10" x2="21" y2="10"></line>
+            </svg>
+            <h2 class="card-title">{{ i18n.dashboard.activityEvolution.title }}</h2>
+          </div>
+        </div>
+        <div class="card-body centered">
+          <app-empty-state
+            [title]="i18n.dashboard.activityEvolution.emptyTitle"
+          ></app-empty-state>
+        </div>
+      </section>
+
+      <!-- Répartition des rôles (Anneau) -->
+      @if (showRoleDistribution()) {
+        <section class="dashboard-card roles-section" aria-label="Répartition des rôles">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <h2 class="card-title">{{ i18n.dashboard.roleDistribution.title }}</h2>
+            </div>
+          </div>
+          <div class="card-body roles-donut-body">
+            @if (loadingUserStats()) {
+              <div class="loading-placeholder">
+                <div class="skeleton-circle"></div>
+              </div>
+            } @else if (errorUserStats()) {
+              <div class="error-notice">—</div>
+            } @else if (!userStats() || userStats()!.users.total === 0) {
+              <div class="empty-notice">{{ i18n.dashboard.roleDistribution.emptyText }}</div>
+            } @else {
+              <div class="donut-chart-container">
+                <div
+                  class="donut-circle"
+                  [style.background]="donutConicGradient()"
+                >
+                  <div class="donut-hole">
+                    <span class="donut-total-count">{{ userStats()!.users.total }}</span>
+                    <span class="donut-total-label">{{ i18n.dashboard.roleDistribution.totalLabel }}</span>
+                  </div>
+                </div>
+              </div>
+              <ul class="roles-legend">
+                @for (slice of roleSlices(); track slice.role) {
+                  <li class="legend-item">
+                    <span class="legend-dot" [style.background-color]="slice.color"></span>
+                    <span class="legend-label">{{ slice.label }}</span>
+                    <span class="legend-value">{{ slice.count }} ({{ slice.percentage }} %)</span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- Aperçu des écoles -->
+      @if (showSchoolsOverview()) {
+        <section class="dashboard-card schools-overview-section" aria-label="Aperçu des écoles">
+          <div class="card-header">
+            <div class="card-header-left">
+              <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 21h18M3 7v14M21 7v14M6 21V11M18 21V11M12 21V11M3 7l9-4 9 4"></path>
+              </svg>
+              <h2 class="card-title">{{ i18n.dashboard.schoolsOverview.title }}</h2>
+            </div>
+            <a routerLink="/schools" class="view-all-link">
+              {{ i18n.dashboard.schoolsOverview.viewAll }}
+            </a>
+          </div>
+          <div class="card-body">
+            @if (loadingSchools()) {
+              <div class="loading-placeholder">
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+                <div class="skeleton-line"></div>
+              </div>
+            } @else if (errorSchools()) {
+              <div class="error-notice">—</div>
+            } @else if (topSchools().length === 0) {
+              <div class="empty-notice">{{ i18n.dashboard.schoolsOverview.empty }}</div>
+            } @else {
+              <table class="overview-table">
+                <thead>
+                  <tr>
+                    <th>{{ i18n.dashboard.schoolsOverview.columns.school }}</th>
+                    <th class="text-right">{{ i18n.dashboard.schoolsOverview.columns.users }}</th>
+                    <th class="text-right">{{ i18n.dashboard.schoolsOverview.columns.programs }}</th>
+                    <th class="text-right">{{ i18n.dashboard.schoolsOverview.columns.status }}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (school of topSchools(); track school.id) {
+                    <tr>
+                      <td class="school-name-cell">
+                        <div class="school-row-icon">
+                          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 21h18M3 7v14M21 7v14M6 21V11M18 21V11M12 21V11M3 7l9-4 9 4"></path>
+                          </svg>
+                        </div>
+                        <span class="school-name">{{ school.name }}</span>
+                      </td>
+                      <td class="text-right count-cell">
+                        {{ school.usersCount ? school.usersCount : '—' }}
+                      </td>
+                      <td class="text-right count-cell">
+                        {{ school.programsCount }}
+                      </td>
+                      <td class="text-right">
+                        <app-status-badge [status]="school.status"></app-status-badge>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </div>
+        </section>
+      }
+    </div>
+  </div>
+</app-admin-layout>

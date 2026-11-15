@@ -35,6 +35,12 @@ import { CommonModule } from '@angular/common';
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
               }
+              @case ('document') {
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+              }
             }
           </div>
         }
@@ -172,7 +178,7 @@ export class StatCardComponent {
   @Input() value?: number | string | null;
   @Input() subtext?: string;
   @Input() trendText?: string;
-  @Input() icon?: 'school' | 'program' | 'user' | 'space';
+  @Input() icon?: 'school' | 'program' | 'user' | 'space' | 'document';
   @Input() loading = false;
 
   get iconColorClass(): string {
@@ -181,6 +187,7 @@ export class StatCardComponent {
       case 'program': return 'icon-program';
       case 'user': return 'icon-user';
       case 'space': return 'icon-space';
+      case 'document': return 'icon-space';
       default: return 'icon-school';
     }
   }

@@ -164,6 +164,14 @@ import { ToastComponent } from '../ui/toast/toast.component';
                       <path d="M9 12l2 2 4-4"></path>
                     </svg>
                   }
+                  @case ('dashboard') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                  }
                   @case ('clock') {
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10"></circle>
@@ -200,13 +208,14 @@ import { ToastComponent } from '../ui/toast/toast.component';
 
           <div class="header-right">
             <!-- Recherche globale stylée -->
-            <div class="search-box">
+            <div class="search-box" [class.disabled]="searchDisabled" [title]="searchDisabled ? searchDisabledTooltip : ''">
               <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
                 <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
               </svg>
               <input
                 type="text"
-                placeholder="Rechercher une école, une filière, un utilisateur…"
+                [placeholder]="searchPlaceholder || 'Rechercher une école, une filière, un utilisateur…'"
+                [disabled]="searchDisabled"
               />
             </div>
 
@@ -506,6 +515,14 @@ import { ToastComponent } from '../ui/toast/toast.component';
     .search-box input::placeholder {
       color: #9AA5B8;
     }
+    .search-box.disabled {
+      background: #F1F5F9;
+      cursor: not-allowed;
+      opacity: 0.7;
+    }
+    .search-box.disabled input {
+      cursor: not-allowed;
+    }
     .search-icon { width: 16px; height: 16px; color: #7A8499; flex-shrink: 0; }
     .icon-circle-btn {
       position: relative;
@@ -567,7 +584,10 @@ import { ToastComponent } from '../ui/toast/toast.component';
 export class AdminLayoutComponent {
   @Input() pageTitle = '';
   @Input() pageSubtitle = '';
-  @Input() pageIcon?: 'school' | 'program' | 'user' | 'space' | 'document' | 'assignment' | 'audit' | 'shield' | 'clock';
+  @Input() pageIcon?: 'school' | 'program' | 'user' | 'space' | 'document' | 'assignment' | 'audit' | 'shield' | 'clock' | 'dashboard';
+  @Input() searchDisabled = false;
+  @Input() searchDisabledTooltip = '';
+  @Input() searchPlaceholder = '';
 
   private readonly sessionService = inject(SessionService);
   private readonly authService = inject(AuthService);
