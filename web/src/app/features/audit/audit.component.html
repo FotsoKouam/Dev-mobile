@@ -1,0 +1,240 @@
+<app-admin-layout
+  [pageTitle]="i18n.auditPage.title"
+  [pageSubtitle]="i18n.auditPage.subtitle"
+  pageIcon="shield"
+>
+  <div class="audit-page-container">
+    @if (error403()) {
+      <div class="forbidden-banner" role="alert">
+        {{ i18n.common.forbidden }}
+      </div>
+    } @else {
+      <!-- Cartes de statistiques -->
+      <section class="stats-grid" aria-label="Statistiques d'audit">
+        <app-stat-card
+          [label]="i18n.auditPage.stats.total"
+          [value]="errorStats() ? '—' : (stats()?.total ?? '—')"
+          [subtext]="i18n.auditPage.periodNotice"
+          [loading]="loadingStats()"
+          icon="space"
+        ></app-stat-card>
+
+        <app-stat-card
+          [label]="i18n.auditPage.stats.loginSuccess"
+          [value]="errorStats() ? '—' : (stats()?.loginSuccess ?? '—')"
+          [subtext]="i18n.auditPage.periodNotice"
+          [loading]="loadingStats()"
+          icon="user"
+        ></app-stat-card>
+
+        <app-stat-card
+          [label]="i18n.auditPage.stats.loginFailure"
+          [value]="errorStats() ? '—' : (stats()?.loginFailure ?? '—')"
+          [subtext]="i18n.auditPage.periodNotice"
+          [loading]="loadingStats()"
+          icon="program"
+        ></app-stat-card>
+
+        <app-stat-card
+          [label]="i18n.auditPage.stats.logout"
+          [value]="errorStats() ? '—' : (stats()?.logout ?? '—')"
+          [subtext]="i18n.auditPage.periodNotice"
+          [loading]="loadingStats()"
+          icon="school"
+        ></app-stat-card>
+      </section>
+
+      <!-- 3. Filtres -->
+      <section class="filters-bar-container" aria-label="Filtres d'audit">
+        <div class="filters-row">
+          <!-- Période : Du et Au -->
+          <div class="filter-group period-group">
+            <span class="filter-label">{{ i18n.auditPage.filters.period }}</span>
+            <div class="period-inputs">
+              <div class="date-input-field">
+                <span class="date-sublabel">{{ i18n.auditPage.filters.from }}</span>
+                <input
+                  type="date"
+                  class="date-input"
+                  [ngModel]="fromDate()"
+                  (ngModelChange)="onFromDateChange($event)"
+                  aria-label="Date de début"
+                />
+              </div>
+
+              <div class="date-input-field">
+                <span class="date-sublabel">{{ i18n.auditPage.filters.to }}</span>
+                <input
+                  type="date"
+                  class="date-input"
+                  [ngModel]="toDate()"
+                  (ngModelChange)="onToDateChange($event)"
+                  aria-label="Date de fin"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Type d'action -->
+          <div class="filter-group action-group">
+            <label for="filter-action" class="filter-label">{{ i18n.auditPage.filters.action }}</label>
+            <select
+              id="filter-action"
+              class="form-select"
+              [ngModel]="selectedAction()"
+              (ngModelChange)="onActionFilterChange($event)"
+            >
+              <option value="">{{ i18n.auditPage.filters.allActions }}</option>
+              <option value="login_success">{{ i18n.auditPage.filters.loginSuccess }}</option>
+              <option value="login_failure">{{ i18n.auditPage.filters.loginFailure }}</option>
+              <option value="logout">{{ i18n.auditPage.filters.logout }}</option>
+            </select>
+          </div>
+
+          <!-- Utilisateur : Recherche avec debounce 300 ms -->
+          <div class="filter-group user-group">
+            <label for="filter-user-search" class="filter-label">{{ i18n.auditPage.filters.user }}</label>
+            <div class="search-input-wrapper">
+              <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+              </svg>
+              <input
+                id="filter-user-search"
+                type="text"
+                class="form-input"
+                [placeholder]="i18n.auditPage.filters.searchUserPlaceholder"
+                [ngModel]="searchQuery()"
+                (ngModelChange)="onSearchInput($event)"
+              />
+            </div>
+          </div>
+
+          <!-- Résultat -->
+          <div class="filter-group result-group">
+            <label for="filter-result" class="filter-label">{{ i18n.auditPage.filters.result }}</label>
+            <select
+              id="filter-result"
+              class="form-select"
+              [ngModel]="selectedResult()"
+              (ngModelChange)="onResultFilterChange($event)"
+            >
+              <option value="">{{ i18n.auditPage.filters.allResults }}</option>
+              <option value="success">{{ i18n.auditPage.filters.success }}</option>
+              <option value="failure">{{ i18n.auditPage.filters.failure }}</option>
+            </select>
+          </div>
+
+          <!-- Bouton Réinitialiser -->
+          <button
+            type="button"
+            class="reset-btn"
+            (click)="onResetFilters()"
+            [title]="i18n.auditPage.filters.reset"
+          >
+            <svg class="reset-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
+              <path d="M3 3v5h5"></path>
+            </svg>
+            <span>{{ i18n.auditPage.filters.reset }}</span>
+          </button>
+        </div>
+
+        @if (dateError()) {
+          <div class="filter-error-msg" role="alert">
+            {{ dateError() }}
+          </div>
+        }
+      </section>
+
+      <!-- 4. Tableau -->
+      <section class="table-card" aria-label="Liste des événements d'audit">
+        <app-data-table
+          [columns]="columns"
+          [data]="auditLogs()"
+          [loading]="loadingAuditLogs()"
+          [meta]="paginationMeta"
+          (pageChange)="onPageChange($event)"
+        >
+          <!-- État vide -->
+          <div emptyState class="empty-table-wrapper">
+            <app-empty-state
+              [title]="i18n.auditPage.table.emptyState"
+              [actionLabel]="hasActiveFilters ? i18n.auditPage.table.resetFilters : undefined"
+              (action)="onResetFilters()"
+            ></app-empty-state>
+          </div>
+        </app-data-table>
+      </section>
+
+      <!-- Templates pour les colonnes du tableau -->
+      <ng-template #dateTpl let-item>
+        <span>{{ formatDateTime(item.createdAt) }}</span>
+      </ng-template>
+
+      <ng-template #userTpl let-item>
+        @if (item.user) {
+          <div class="user-cell">
+            <span class="user-name">{{ item.user.firstName }} {{ item.user.lastName }}</span>
+            @if (item.user.role) {
+              <span class="user-role">{{ formatRole(item.user.role) }}</span>
+            }
+          </div>
+        } @else {
+          <span class="empty-cell">{{ i18n.auditPage.table.anonymous }}</span>
+        }
+      </ng-template>
+
+      <ng-template #actionTpl let-item>
+        <span
+          class="action-badge"
+          [class.badge-login-success]="item.action === 'login_success'"
+          [class.badge-login-failure]="item.action === 'login_failure'"
+          [class.badge-logout]="item.action === 'logout'"
+        >
+          <span class="badge-dot"></span>
+          {{ formatActionLabel(item.action) }}
+        </span>
+      </ng-template>
+
+      <ng-template #targetTpl let-item>
+        <span>{{ item.target || '—' }}</span>
+      </ng-template>
+
+      <ng-template #ipTpl let-item>
+        <span class="monospace-ip">{{ item.ipAddress || '—' }}</span>
+      </ng-template>
+
+      <ng-template #resultTpl let-item>
+        <span
+          class="result-badge"
+          [class.badge-success]="item.result === 'success'"
+          [class.badge-failure]="item.result === 'failure'"
+        >
+          {{ item.result === 'success' ? i18n.auditPage.filters.success : i18n.auditPage.filters.failure }}
+        </span>
+      </ng-template>
+
+      <ng-template #actionsTpl let-item>
+        <button
+          type="button"
+          class="action-icon-btn"
+          (click)="openDetail(item)"
+          [title]="i18n.common.viewDetail"
+          aria-label="Voir le détail de l'événement"
+        >
+          <svg class="action-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            <circle cx="12" cy="12" r="3"></circle>
+          </svg>
+        </button>
+      </ng-template>
+
+      <!-- 5. Panneau de détail -->
+      <app-audit-detail
+        [isOpen]="isDetailPanelOpen()"
+        [auditLog]="selectedAuditLog()"
+        (panelClosed)="closeDetail()"
+      ></app-audit-detail>
+    }
+  </div>
+</app-admin-layout>

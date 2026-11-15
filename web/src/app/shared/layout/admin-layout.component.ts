@@ -151,9 +151,43 @@ import { ToastComponent } from '../ui/toast/toast.component';
           <div class="header-left">
             <div class="page-title-group">
               <div class="header-icon-badge">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M3 21h18M3 7v14M21 7v14M6 21V11M18 21V11M12 21V11M3 7l9-4 9 4"></path>
-                </svg>
+                @switch (pageIcon) {
+                  @case ('audit') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      <path d="M9 12l2 2 4-4"></path>
+                    </svg>
+                  }
+                  @case ('shield') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                      <path d="M9 12l2 2 4-4"></path>
+                    </svg>
+                  }
+                  @case ('clock') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                  }
+                  @case ('document') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                      <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                  }
+                  @case ('assignment') {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"></path>
+                      <rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect>
+                    </svg>
+                  }
+                  @default {
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M3 21h18M3 7v14M21 7v14M6 21V11M18 21V11M12 21V11M3 7l9-4 9 4"></path>
+                    </svg>
+                  }
+                }
               </div>
               <div class="header-titles">
                 <h1 class="page-title">{{ pageTitle }}</h1>
@@ -533,6 +567,7 @@ import { ToastComponent } from '../ui/toast/toast.component';
 export class AdminLayoutComponent {
   @Input() pageTitle = '';
   @Input() pageSubtitle = '';
+  @Input() pageIcon?: 'school' | 'program' | 'user' | 'space' | 'document' | 'assignment' | 'audit' | 'shield' | 'clock';
 
   private readonly sessionService = inject(SessionService);
   private readonly authService = inject(AuthService);
@@ -570,7 +605,10 @@ export class AdminLayoutComponent {
   }
 
   get canAccessAudit(): boolean {
-    return this.sessionService.hasPermission('view_audit_logs');
+    return (
+      this.sessionService.hasPermission('view_audit_log') ||
+      this.sessionService.hasPermission('view_audit_logs')
+    );
   }
 
   get userName(): string {
