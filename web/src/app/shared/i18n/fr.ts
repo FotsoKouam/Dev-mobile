@@ -693,5 +693,62 @@ export const I18N_FR = {
       close: 'Fermer',
     },
   },
+  dashboard: {
+    title: 'Tableau de bord',
+    subtitle: 'Vue d’ensemble de votre plateforme CampusIA.',
+    searchPlaceholder: 'Rechercher une école, un utilisateur, une filière, un espace…',
+    searchTooltip: 'Bientôt disponible',
+    stats: {
+      activeSchools: 'Écoles actives',
+      totalSchoolsSuffix: (total: number) => `sur ${total} école${total > 1 ? 's' : ''} au total`,
+      activePrograms: 'Filières actives',
+      totalProgramsSuffix: (total: number) => `sur ${total} filière${total > 1 ? 's' : ''} au total`,
+      activeUsers: 'Utilisateurs actifs',
+      totalUsersSuffix: (total: number) => `sur ${total} utilisateur${total > 1 ? 's' : ''} au total`,
+      institutionalSpaces: 'Espaces institutionnels',
+      totalSpacesSuffix: (total: number) => `sur ${total} espace${total > 1 ? 's' : ''} au total`,
+      indexedDocuments: 'Documents indexés',
+      totalDocumentsSuffix: (total: number) => `sur ${total} document${total > 1 ? 's' : ''} au total`,
+      documentsStatusNotice: (processing: number, error: number) => `${processing} en traitement · ${error} en erreur`,
+    },
+    alerts: {
+      title: 'Alertes récentes',
+      viewAll: 'Voir toutes',
+      emptyTitle: 'Les alertes seront disponibles dans une prochaine version.',
+    },
+    activity: {
+      title: 'Activité récente',
+      viewAll: 'Voir toutes',
+      anonymous: 'Anonyme',
+      empty: 'Aucune activité récente.',
+    },
+    shortcuts: {
+      title: 'Raccourcis rapides',
+      newSchool: 'Nouvelle école',
+      newUser: 'Nouvel utilisateur',
+      addProgram: 'Ajouter une filière',
+      createSpace: 'Créer un espace',
+    },
+    schoolsOverview: {
+      title: 'Aperçu des écoles',
+      viewAll: 'Voir toutes',
+      columns: {
+        school: 'École',
+        users: 'Utilisateurs',
+        programs: 'Filières',
+        status: 'Statut',
+      },
+      empty: 'Aucune école enregistrée.',
+    },
+    roleDistribution: {
+      title: 'Répartition des rôles',
+      totalLabel: 'utilisateurs',
+      emptyText: 'Aucun utilisateur',
+    },
+    activityEvolution: {
+      title: 'Évolution de l’activité',
+      emptyTitle: 'Le graphique d’activité sera disponible dans une prochaine version.',
+    },
+  },
 };
 
