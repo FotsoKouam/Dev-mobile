@@ -12,6 +12,7 @@ import { AssignmentsModule } from './assignments/assignments.module.js';
 import { SpacesModule } from './spaces/spaces.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { AuditModule } from './audit/audit.module.js';
 
 @Module({
   imports: [
@@ -45,6 +46,7 @@ import { AuthModule } from './auth/auth.module.js';
     SpacesModule,
     DocumentsModule,
     AuthModule,
+    AuditModule,
   ],
   controllers: [AppController],
   providers: [AppService],
