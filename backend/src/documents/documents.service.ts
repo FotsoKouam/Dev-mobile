@@ -303,12 +303,10 @@ export class DocumentsService {
     let storageKeyToSave: string;
 
     try {
-      const doc = await queryRunner.manager
-        .createQueryBuilder(Document, 'document')
-        .setLock('pessimistic_write')
-        .leftJoinAndSelect('document.space', 'space')
-        .where('document.id = :id', { id: documentId })
-        .getOne();
+      const doc = await queryRunner.manager.findOne(Document, {
+        where: { id: documentId },
+        lock: { mode: 'pessimistic_write', tables: ['documents'] },
+      });
 
       if (!doc) {
         throw new NotFoundException('Document introuvable');
@@ -318,7 +316,10 @@ export class DocumentsService {
         throw new ConflictException('Impossible d ajouter une version sur un document en erreur');
       }
 
-      const space = doc.space;
+      const space = await queryRunner.manager.findOne(Space, {
+        where: { id: doc.spaceId },
+      });
+
       if (!space || space.status !== SpaceStatus.ACTIVE) {
         throw new ConflictException('Impossible d ajouter une version dans un espace inactif');
       }

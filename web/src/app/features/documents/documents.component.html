@@ -1,37 +1,22 @@
-<app-admin-layout
-  [pageTitle]="i18n.documentsPage.title"
-  [pageSubtitle]="i18n.documentsPage.subtitle"
->
+<app-admin-layout [pageTitle]="i18n.documentsPage.title" [pageSubtitle]="i18n.documentsPage.subtitle">
   <div class="documents-page">
     <!-- 4 Cartes de statistiques branchées sur GET /api/documents/stats -->
     <section class="stats-grid">
-      <app-stat-card
-        [label]="i18n.documentsPage.stats.total"
-        [value]="errorStats() ? '—' : (stats() ? stats()!.total : (loadingStats() ? 0 : 0))"
-        icon="school"
-        [loading]="loadingStats()"
-      ></app-stat-card>
+      <app-stat-card [label]="i18n.documentsPage.stats.total"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.total : (loadingStats() ? 0 : 0))" icon="school"
+        [loading]="loadingStats()"></app-stat-card>
 
-      <app-stat-card
-        [label]="i18n.documentsPage.stats.available"
-        [value]="errorStats() ? '—' : (stats() ? stats()!.available : (loadingStats() ? 0 : 0))"
-        icon="user"
-        [loading]="loadingStats()"
-      ></app-stat-card>
+      <app-stat-card [label]="i18n.documentsPage.stats.available"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.available : (loadingStats() ? 0 : 0))" icon="user"
+        [loading]="loadingStats()"></app-stat-card>
 
-      <app-stat-card
-        [label]="i18n.documentsPage.stats.processing"
-        [value]="errorStats() ? '—' : (stats() ? stats()!.processing : (loadingStats() ? 0 : 0))"
-        icon="program"
-        [loading]="loadingStats()"
-      ></app-stat-card>
+      <app-stat-card [label]="i18n.documentsPage.stats.processing"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.processing : (loadingStats() ? 0 : 0))" icon="program"
+        [loading]="loadingStats()"></app-stat-card>
 
-      <app-stat-card
-        [label]="i18n.documentsPage.stats.error"
-        [value]="errorStats() ? '—' : (stats() ? stats()!.error : (loadingStats() ? 0 : 0))"
-        icon="school"
-        [loading]="loadingStats()"
-      ></app-stat-card>
+      <app-stat-card [label]="i18n.documentsPage.stats.error"
+        [value]="errorStats() ? '—' : (stats() ? stats()!.error : (loadingStats() ? 0 : 0))" icon="school"
+        [loading]="loadingStats()"></app-stat-card>
     </section>
 
     <!-- Barre d'actions et filtres réels -->
@@ -40,65 +25,42 @@
         <!-- Recherche nom document (active) -->
         <div class="search-field-container">
           <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor">
-            <path
-              fill-rule="evenodd"
+            <path fill-rule="evenodd"
               d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
-              clip-rule="evenodd"
-            />
+              clip-rule="evenodd" />
           </svg>
-          <input
-            type="text"
-            class="search-input"
-            [placeholder]="i18n.documentsPage.filters.searchPlaceholder"
-            [ngModel]="searchQuery()"
-            (ngModelChange)="onSearchInput($event)"
-          />
+          <input type="text" class="search-input" [placeholder]="i18n.documentsPage.filters.searchPlaceholder"
+            [ngModel]="searchQuery()" (ngModelChange)="onSearchInput($event)" />
         </div>
 
         <!-- Filtre École (réel) -->
-        <select
-          class="filter-select"
-          [ngModel]="selectedSchoolId()"
-          (ngModelChange)="onSchoolFilterChange($event)"
-        >
+        <select class="filter-select" [ngModel]="selectedSchoolId()" (ngModelChange)="onSchoolFilterChange($event)">
           <option value="">{{ i18n.documentsPage.filters.allSchools }}</option>
           @for (school of schools(); track school.id) {
-            <option [value]="school.id">{{ school.name }}</option>
+          <option [value]="school.id">{{ school.name }}</option>
           }
         </select>
 
         <!-- Filtre Filière (réel, activé si école sélectionnée) -->
-        <select
-          class="filter-select"
-          [ngModel]="selectedProgramId()"
-          (ngModelChange)="onProgramFilterChange($event)"
-          [disabled]="!selectedSchoolId() || loadingPrograms()"
-        >
+        <select class="filter-select" [ngModel]="selectedProgramId()" (ngModelChange)="onProgramFilterChange($event)"
+          [disabled]="!selectedSchoolId() || loadingPrograms()">
           <option value="">{{ i18n.documentsPage.filters.allPrograms }}</option>
           @for (prog of programs(); track prog.id) {
-            <option [value]="prog.id">{{ prog.name }}</option>
+          <option [value]="prog.id">{{ prog.name }}</option>
           }
         </select>
 
         <!-- Filtre Espace (réel, activé si filière sélectionnée) -->
-        <select
-          class="filter-select"
-          [ngModel]="selectedSpaceId()"
-          (ngModelChange)="onSpaceFilterChange($event)"
-          [disabled]="!selectedProgramId() || loadingSpaces()"
-        >
+        <select class="filter-select" [ngModel]="selectedSpaceId()" (ngModelChange)="onSpaceFilterChange($event)"
+          [disabled]="!selectedProgramId() || loadingSpaces()">
           <option value="">{{ i18n.documentsPage.filters.allSpaces }}</option>
           @for (space of spaces(); track space.id) {
-            <option [value]="space.id">{{ space.name }}</option>
+          <option [value]="space.id">{{ space.name }}</option>
           }
         </select>
 
         <!-- Filtre Type (actif) -->
-        <select
-          class="filter-select"
-          [ngModel]="selectedFileType()"
-          (ngModelChange)="onFileTypeFilterChange($event)"
-        >
+        <select class="filter-select" [ngModel]="selectedFileType()" (ngModelChange)="onFileTypeFilterChange($event)">
           <option value="">{{ i18n.documentsPage.filters.allTypes }}</option>
           <option value="pdf">{{ i18n.documentsPage.filters.typePdf }}</option>
           <option value="scanned_pdf">{{ i18n.documentsPage.filters.typeScannedPdf }}</option>
@@ -106,11 +68,7 @@
         </select>
 
         <!-- Filtre Statut (actif) -->
-        <select
-          class="filter-select"
-          [ngModel]="selectedStatus()"
-          (ngModelChange)="onStatusFilterChange($event)"
-        >
+        <select class="filter-select" [ngModel]="selectedStatus()" (ngModelChange)="onStatusFilterChange($event)">
           <option value="">{{ i18n.documentsPage.filters.allStatuses }}</option>
           <option value="pending">{{ i18n.documentsPage.filters.statusPending }}</option>
           <option value="ocr">{{ i18n.documentsPage.filters.statusOcr }}</option>
@@ -124,23 +82,15 @@
       <!-- Actions à droite -->
       <div class="actions-group">
         @if (canAddDocument) {
-          <button
-            type="button"
-            class="btn btn-primary"
-            (click)="openUploadModal()"
-          >
-            {{ i18n.documentsPage.actions.addDocument }}
-          </button>
+        <button type="button" class="btn btn-primary" (click)="openUploadModal()">
+          {{ i18n.documentsPage.actions.addDocument }}
+        </button>
         }
 
         @if (canCreateInstitutionalSpace) {
-          <button
-            type="button"
-            class="btn btn-secondary"
-            (click)="openCreateSpaceModal()"
-          >
-            {{ i18n.documentsPage.actions.createSpace }}
-          </button>
+        <button type="button" class="btn btn-secondary" (click)="openCreateSpaceModal()">
+          {{ i18n.documentsPage.actions.createSpace }}
+        </button>
         }
       </div>
     </section>
@@ -148,24 +98,15 @@
     <!-- Tableau alimenté par GET /api/documents -->
     <section class="table-card">
       @if (documents().length === 0 && !loadingDocuments()) {
-        <div class="empty-table-container">
-          <app-empty-state
-            [title]="i18n.documentsPage.table.emptyReal"
-            [actionLabel]="canAddDocument ? i18n.documentsPage.actions.addDocument : undefined"
-            (action)="openUploadModal()"
-          ></app-empty-state>
-        </div>
+      <div class="empty-table-container">
+        <app-empty-state [title]="i18n.documentsPage.table.emptyReal"
+          [actionLabel]="canAddDocument ? i18n.documentsPage.actions.addDocument : undefined"
+          (action)="openUploadModal()"></app-empty-state>
+      </div>
       } @else {
-        <app-data-table
-          [data]="documents()"
-          [columns]="columns"
-          [loading]="loadingDocuments()"
-          [selectable]="true"
-          [clickable]="true"
-          [meta]="paginationMeta"
-          (pageChange)="onPageChange($event)"
-          (rowClick)="openDocumentDetail($event)"
-        ></app-data-table>
+      <app-data-table [data]="documents()" [columns]="columns" [loading]="loadingDocuments()" [selectable]="true"
+        [clickable]="true" [meta]="paginationMeta" (pageChange)="onPageChange($event)"
+        (rowClick)="openDocumentDetail($event)"></app-data-table>
       }
     </section>
   </div>
@@ -216,12 +157,8 @@
   </ng-template>
 
   <ng-template #docActionsTpl let-item>
-    <button
-      type="button"
-      class="action-icon-btn"
-      title="Voir le détail"
-      (click)="$event.stopPropagation(); openDocumentDetail(item)"
-    >
+    <button type="button" class="action-icon-btn" title="Voir le détail"
+      (click)="$event.stopPropagation(); openDocumentDetail(item)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
         <circle cx="12" cy="12" r="3"></circle>
@@ -230,27 +167,28 @@
   </ng-template>
 
   <!-- Modal Création d'un espace institutionnel -->
-  <app-space-form
-    [isOpen]="isCreateSpaceModalOpen()"
-    [initialSchoolId]="selectedSchoolId()"
-    [initialProgramId]="selectedProgramId()"
-    (formClosed)="isCreateSpaceModalOpen.set(false)"
-    (spaceSaved)="onSpaceCreated($event)"
-  ></app-space-form>
+  <app-space-form [isOpen]="isCreateSpaceModalOpen()" [initialSchoolId]="selectedSchoolId()"
+    [initialProgramId]="selectedProgramId()" (formClosed)="isCreateSpaceModalOpen.set(false)"
+    (spaceSaved)="onSpaceCreated($event)"></app-space-form>
 
   <!-- Modal Upload Document -->
-  <app-document-upload
-    [isOpen]="isUploadModalOpen()"
-    [initialSpaceId]="selectedSpaceId()"
-    [preloadedSpaces]="spaces()"
-    (modalClosed)="isUploadModalOpen.set(false)"
-    (documentUploaded)="onDocumentUploaded($event)"
-  ></app-document-upload>
+  <app-document-upload [isOpen]="isUploadModalOpen()" [initialSpaceId]="selectedSpaceId()" [preloadedSpaces]="spaces()"
+    (modalClosed)="isUploadModalOpen.set(false)" (documentUploaded)="onDocumentUploaded($event)"></app-document-upload>
 
   <!-- Panneau latéral de détail d'un document -->
   <app-document-detail
     [isOpen]="isDetailPanelOpen()"
     [document]="selectedDocument()"
     (panelClosed)="isDetailPanelOpen.set(false)"
+    (replaceVersionRequested)="openReplaceVersionModal($event)"
+    (documentRefreshed)="onDocumentRefreshed($event)"
   ></app-document-detail>
+
+  <!-- Modal Remplacer par une nouvelle version -->
+  <app-document-version-upload
+    [isOpen]="isVersionUploadModalOpen()"
+    [document]="documentToReplace()"
+    (cancel)="isVersionUploadModalOpen.set(false)"
+    (versionUploaded)="onVersionUploaded($event)"
+  ></app-document-version-upload>
 </app-admin-layout>
