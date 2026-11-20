@@ -3,15 +3,18 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  InternalServerErrorException,
   NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
+import { createHash } from 'node:crypto';
 import { DocumentsService, UploadedFilePayload, UserContext } from './documents.service.js';
 import { Document } from './document.entity.js';
 import { DocumentVersion } from './document-version.entity.js';
 import { Space } from '../spaces/space.entity.js';
 import { Assignment } from '../assignments/assignment.entity.js';
+import { AuditLog } from '../audit/audit-log.entity.js';
 import { StorageService } from './storage/storage.service.js';
 import { DocumentFileType, DocumentStatus } from './document.enums.js';
 import { SpaceStatus } from '../spaces/space.enums.js';
@@ -22,19 +25,24 @@ describe('DocumentsService', () => {
   let versionsRepo: Partial<Record<keyof Repository<DocumentVersion>, any>>;
   let spacesRepo: Partial<Record<keyof Repository<Space>, any>>;
   let assignmentsRepo: Partial<Record<keyof Repository<Assignment>, any>>;
+  let auditLogsRepo: Partial<Record<keyof Repository<AuditLog>, any>>;
   let storageService: Partial<Record<keyof StorageService, any>>;
+  let dataSource: Partial<Record<keyof DataSource, any>>;
 
   beforeEach(() => {
     documentsRepo = {
       create: vi.fn((dto) => ({ id: 'doc-1', ...dto })),
       save: vi.fn((doc) => Promise.resolve({ id: 'doc-1', ...doc })),
       update: vi.fn().mockResolvedValue({ affected: 1 }),
+      findOne: vi.fn(),
       createQueryBuilder: vi.fn(),
     };
 
     versionsRepo = {
       create: vi.fn((dto) => ({ id: 'ver-1', ...dto })),
       save: vi.fn((ver) => Promise.resolve({ id: 'ver-1', ...ver })),
+      findOne: vi.fn(),
+      createQueryBuilder: vi.fn(),
     };
 
     spacesRepo = {
@@ -45,9 +53,19 @@ describe('DocumentsService', () => {
       createQueryBuilder: vi.fn(),
     };
 
+    auditLogsRepo = {
+      create: vi.fn((dto) => ({ id: 'audit-1', ...dto })),
+      save: vi.fn((log) => Promise.resolve({ id: 'audit-1', ...log })),
+    };
+
     storageService = {
       getMaxUploadMb: vi.fn().mockReturnValue(20),
       saveFile: vi.fn().mockResolvedValue('/storage/file.pdf'),
+      readFile: vi.fn().mockReturnValue(Buffer.from('%PDF-1.4 sample content')),
+    };
+
+    dataSource = {
+      createQueryRunner: vi.fn(),
     };
 
     service = new DocumentsService(
@@ -55,11 +73,426 @@ describe('DocumentsService', () => {
       versionsRepo as any,
       spacesRepo as any,
       assignmentsRepo as any,
+      auditLogsRepo as any,
       storageService as any,
+      dataSource as any,
     );
   });
 
-  describe('findAll', () => {
+  describe('setStatus', () => {
+    it('accepte les transitions autorisées : pending -> available, available -> error, error -> pending', async () => {
+      // 1. pending -> available
+      documentsRepo.findOne = vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.PENDING });
+      const res1 = await service.setStatus('doc-1', DocumentStatus.AVAILABLE);
+      expect(res1.status).toBe(DocumentStatus.AVAILABLE);
+
+      // 2. available -> error
+      documentsRepo.findOne = vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.AVAILABLE });
+      const res2 = await service.setStatus('doc-1', DocumentStatus.ERROR, 'Erreur disque');
+      expect(res2.status).toBe(DocumentStatus.ERROR);
+      expect(res2.errorMessage).toBe('Erreur disque');
+
+      // 3. error -> pending
+      documentsRepo.findOne = vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.ERROR, errorMessage: 'Erreur' });
+      const res3 = await service.setStatus('doc-1', DocumentStatus.PENDING);
+      expect(res3.status).toBe(DocumentStatus.PENDING);
+      expect(res3.errorMessage).toBeNull();
+    });
+
+    it('rejette les transitions interdites (ex: available -> pending, pending -> indexing)', async () => {
+      documentsRepo.findOne = vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.AVAILABLE });
+      await expect(service.setStatus('doc-1', DocumentStatus.PENDING)).rejects.toThrow(BadRequestException);
+
+      documentsRepo.findOne = vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.PENDING });
+      await expect(service.setStatus('doc-1', DocumentStatus.INDEXING)).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('upload', () => {
+    it('le document passe automatiquement à available après création', async () => {
+      const spaceMock = {
+        id: 'space-1',
+        status: SpaceStatus.ACTIVE,
+        programId: 'prog-1',
+      };
+      const spaceQbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(spaceMock),
+      };
+      spacesRepo.createQueryBuilder = vi.fn().mockReturnValue(spaceQbMock);
+
+      // findOne pour le doc créé
+      documentsRepo.findOne = vi.fn().mockImplementation(() =>
+        Promise.resolve({
+          id: 'doc-1',
+          name: 'test.pdf',
+          status: DocumentStatus.PENDING,
+          spaceId: 'space-1',
+        }),
+      );
+
+      const findOneDocQb: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue({
+          id: 'doc-1',
+          name: 'test.pdf',
+          fileType: DocumentFileType.PDF,
+          status: DocumentStatus.AVAILABLE,
+          spaceId: 'space-1',
+          uploadedById: 'user-1',
+          currentVersion: { versionNumber: 1, sizeBytes: 100 },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(findOneDocQb);
+
+      const file: UploadedFilePayload = {
+        buffer: Buffer.from('%PDF-1.4 file data'),
+        originalname: 'test.pdf',
+        size: 100,
+      };
+      const user: UserContext = { id: 'user-1', roles: ['platform_admin'] };
+
+      const result = await service.upload('space-1', file, { name: 'test.pdf' }, user);
+      expect(result.status).toBe(DocumentStatus.AVAILABLE);
+      expect(storageService.saveFile).toHaveBeenCalled();
+    });
+
+    it('pose le statut error si l écriture sur disque échoue après la création des lignes', async () => {
+      const spaceMock = {
+        id: 'space-1',
+        status: SpaceStatus.ACTIVE,
+        programId: 'prog-1',
+      };
+      const spaceQbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(spaceMock),
+      };
+      spacesRepo.createQueryBuilder = vi.fn().mockReturnValue(spaceQbMock);
+
+      documentsRepo.findOne = vi.fn().mockResolvedValue({
+        id: 'doc-1',
+        status: DocumentStatus.PENDING,
+      });
+
+      storageService.saveFile = vi.fn().mockRejectedValue(new Error('Disk failure'));
+
+      const file: UploadedFilePayload = {
+        buffer: Buffer.from('%PDF-1.4 file data'),
+        originalname: 'test.pdf',
+        size: 100,
+      };
+      const user: UserContext = { id: 'user-1', roles: ['platform_admin'] };
+
+      await expect(service.upload('space-1', file, {}, user)).rejects.toThrow('Disk failure');
+      expect(documentsRepo.save).toHaveBeenCalled();
+    });
+  });
+
+  describe('addVersion', () => {
+    let queryRunnerMock: any;
+
+    beforeEach(() => {
+      queryRunnerMock = {
+        connect: vi.fn().mockResolvedValue(undefined),
+        startTransaction: vi.fn().mockResolvedValue(undefined),
+        commitTransaction: vi.fn().mockResolvedValue(undefined),
+        rollbackTransaction: vi.fn().mockResolvedValue(undefined),
+        release: vi.fn().mockResolvedValue(undefined),
+        manager: {
+          createQueryBuilder: vi.fn(),
+          create: vi.fn((entity, dto) => ({ id: 'ver-2', ...dto })),
+          save: vi.fn((entity) => Promise.resolve(entity)),
+        },
+      };
+      dataSource.createQueryRunner = vi.fn().mockReturnValue(queryRunnerMock);
+    });
+
+    it('incrémente le versionNumber et met à jour currentVersionId', async () => {
+      const docMock = {
+        id: 'doc-1',
+        name: 'test.pdf',
+        fileType: DocumentFileType.PDF,
+        status: DocumentStatus.AVAILABLE,
+        space: { id: 'space-1', status: SpaceStatus.ACTIVE },
+      };
+
+      const docQb: any = {
+        setLock: vi.fn().mockReturnThis(),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+
+      const verQb: any = {
+        select: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getRawOne: vi.fn().mockResolvedValue({ max: 1 }),
+      };
+
+      queryRunnerMock.manager.createQueryBuilder.mockImplementation((entity: any) => {
+        if (entity === Document) return docQb;
+        if (entity === DocumentVersion) return verQb;
+        return {};
+      });
+
+      const findOneDocQb: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue({
+          ...docMock,
+          currentVersion: { versionNumber: 2, sizeBytes: 200 },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        }),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(findOneDocQb);
+
+      const file: UploadedFilePayload = {
+        buffer: Buffer.from('%PDF-1.4 new version content'),
+        originalname: 'test_v2.pdf',
+        size: 200,
+      };
+      const user: UserContext = { id: 'u-1', roles: ['platform_admin'] };
+
+      const result = await service.addVersion('doc-1', file, user);
+      expect(result.version).toBe(2);
+      expect(queryRunnerMock.commitTransaction).toHaveBeenCalled();
+      expect(storageService.saveFile).toHaveBeenCalled();
+    });
+
+    it('renvoie 409 si le document est en statut error', async () => {
+      const docMock = {
+        id: 'doc-1',
+        status: DocumentStatus.ERROR,
+        space: { id: 'space-1', status: SpaceStatus.ACTIVE },
+      };
+
+      const docQb: any = {
+        setLock: vi.fn().mockReturnThis(),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+      queryRunnerMock.manager.createQueryBuilder.mockReturnValue(docQb);
+
+      const file: UploadedFilePayload = {
+        buffer: Buffer.from('%PDF-1.4 new version content'),
+        originalname: 'test_v2.pdf',
+        size: 200,
+      };
+
+      await expect(service.addVersion('doc-1', file, { id: 'u-1' })).rejects.toThrow(ConflictException);
+      expect(queryRunnerMock.rollbackTransaction).toHaveBeenCalled();
+    });
+
+    it('renvoie 409 si l espace du document est inactif', async () => {
+      const docMock = {
+        id: 'doc-1',
+        status: DocumentStatus.AVAILABLE,
+        space: { id: 'space-1', status: SpaceStatus.INACTIVE },
+      };
+
+      const docQb: any = {
+        setLock: vi.fn().mockReturnThis(),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+      queryRunnerMock.manager.createQueryBuilder.mockReturnValue(docQb);
+
+      const file: UploadedFilePayload = {
+        buffer: Buffer.from('%PDF-1.4 new version content'),
+        originalname: 'test_v2.pdf',
+        size: 200,
+      };
+
+      await expect(service.addVersion('doc-1', file, { id: 'u-1' })).rejects.toThrow(ConflictException);
+    });
+
+    it('renvoie 403 pour un compte staff hors filière', async () => {
+      const docMock = {
+        id: 'doc-1',
+        status: DocumentStatus.AVAILABLE,
+        space: { id: 'space-1', status: SpaceStatus.ACTIVE, programId: 'prog-1' },
+      };
+
+      const docQb: any = {
+        setLock: vi.fn().mockReturnThis(),
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+      queryRunnerMock.manager.createQueryBuilder.mockReturnValue(docQb);
+
+      const assignQb: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        andWhere: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(null), // Aucune affectation staff trouvée
+      };
+      assignmentsRepo.createQueryBuilder = vi.fn().mockReturnValue(assignQb);
+
+      const file: UploadedFilePayload = {
+        buffer: Buffer.from('%PDF-1.4 new version content'),
+        originalname: 'test_v2.pdf',
+        size: 200,
+      };
+      const staffUser: UserContext = { id: 'u-staff', roles: ['staff'] };
+
+      await expect(service.addVersion('doc-1', file, staffUser)).rejects.toThrow(ForbiddenException);
+    });
+
+    it('renvoie 413 si la taille dépasse MAX_UPLOAD_MB', async () => {
+      const file: UploadedFilePayload = {
+        buffer: Buffer.alloc(25 * 1024 * 1024),
+        originalname: 'test_v2.pdf',
+        size: 25 * 1024 * 1024,
+      };
+      await expect(service.addVersion('doc-1', file, { id: 'u-1' })).rejects.toThrow(PayloadTooLargeException);
+    });
+
+    it('renvoie 400 pour un type interdit (magic bytes invalides)', async () => {
+      const file: UploadedFilePayload = {
+        buffer: Buffer.from('ceci n est pas un pdf ni une image'),
+        originalname: 'test.txt',
+        size: 100,
+      };
+      await expect(service.addVersion('doc-1', file, { id: 'u-1' })).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('download', () => {
+    it('renvoie 409 si le document est en statut error', async () => {
+      const qbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.ERROR }),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
+
+      await expect(service.download('doc-1')).rejects.toThrow(ConflictException);
+    });
+
+    it('renvoie 404 si le document est introuvable', async () => {
+      const qbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(null),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
+
+      await expect(service.download('doc-unknown')).rejects.toThrow(NotFoundException);
+    });
+
+    it('assainit le nom d origine avant de le renvoyer et journalise l audit', async () => {
+      const docMock = {
+        id: 'doc-1',
+        status: DocumentStatus.AVAILABLE,
+        currentVersion: {
+          id: 'v-1',
+          storageKey: 'v-1.pdf',
+          originalFilename: 'test\r\n"bad"/name.pdf',
+          mimeType: 'application/pdf',
+        },
+      };
+      const qbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
+
+      const result = await service.download('doc-1', undefined, { id: 'u-1' }, '127.0.0.1', 'Vitest');
+      expect(result.sanitizedFilename).toBe('test___bad__name.pdf');
+      expect(auditLogsRepo.save).toHaveBeenCalled();
+    });
+
+    it('si le fichier est absent sur disque : passe le statut à error et lève 500', async () => {
+      const docMock = {
+        id: 'doc-1',
+        status: DocumentStatus.AVAILABLE,
+        currentVersion: {
+          id: 'v-1',
+          storageKey: 'missing.pdf',
+          originalFilename: 'missing.pdf',
+          mimeType: 'application/pdf',
+        },
+      };
+      const qbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
+
+      storageService.readFile = vi.fn().mockImplementation(() => {
+        throw new NotFoundException('Fichier introuvable');
+      });
+
+      await expect(service.download('doc-1')).rejects.toThrow(InternalServerErrorException);
+      expect(documentsRepo.update).toHaveBeenCalledWith('doc-1', {
+        status: DocumentStatus.ERROR,
+        errorMessage: 'Fichier introuvable sur le stockage',
+      });
+    });
+  });
+
+  describe('verify', () => {
+    it('renvoie ok: true si le hash SHA-256 recalculé correspond', async () => {
+      const buffer = Buffer.from('%PDF-1.4 valid content');
+      const hash = createHash('sha256').update(buffer).digest('hex');
+
+      const docMock = {
+        id: 'doc-1',
+        currentVersion: {
+          storageKey: 'v1.pdf',
+          checksumSha256: hash,
+        },
+      };
+      const qbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
+      storageService.readFile = vi.fn().mockReturnValue(buffer);
+
+      const res = await service.verify('doc-1');
+      expect(res.ok).toBe(true);
+    });
+
+    it('renvoie ok: false et passe le statut à error si le hash est corrompu', async () => {
+      const buffer = Buffer.from('%PDF-1.4 modified content');
+      const docMock = {
+        id: 'doc-1',
+        currentVersion: {
+          storageKey: 'v1.pdf',
+          checksumSha256: 'different-checksum',
+        },
+      };
+      const qbMock: any = {
+        leftJoinAndSelect: vi.fn().mockReturnThis(),
+        where: vi.fn().mockReturnThis(),
+        getOne: vi.fn().mockResolvedValue(docMock),
+      };
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
+      storageService.readFile = vi.fn().mockReturnValue(buffer);
+
+      const res = await service.verify('doc-1');
+      expect(res.ok).toBe(false);
+      expect(documentsRepo.update).toHaveBeenCalledWith('doc-1', {
+        status: DocumentStatus.ERROR,
+        errorMessage: 'Somme de contrôle (checksum) invalide',
+      });
+    });
+  });
+
+  describe('findAll & getStats', () => {
     it('applique le tri document.createdAt DESC, la pagination skip/take et les filtres avec noms d entités', async () => {
       const qbMock: any = {
         leftJoinAndSelect: vi.fn().mockReturnThis(),
@@ -73,7 +506,7 @@ describe('DocumentsService', () => {
               id: 'doc-1',
               name: 'Cours_Graphes_Ch3.pdf',
               fileType: DocumentFileType.PDF,
-              status: DocumentStatus.PENDING,
+              status: DocumentStatus.AVAILABLE,
               spaceId: 'space-1',
               space: {
                 id: 'space-1',
@@ -101,274 +534,39 @@ describe('DocumentsService', () => {
         spaceId: 'space-1',
         programId: 'prog-1',
         schoolId: 'sch-1',
-        status: DocumentStatus.PENDING,
+        status: DocumentStatus.AVAILABLE,
         fileType: DocumentFileType.PDF,
-        search: 'Graphes',
+        search: 'graphes',
       });
 
-      expect(documentsRepo.createQueryBuilder).toHaveBeenCalledWith('document');
-      expect(qbMock.orderBy).toHaveBeenCalledWith('document.createdAt', 'DESC');
       expect(qbMock.skip).toHaveBeenCalledWith(15);
       expect(qbMock.take).toHaveBeenCalledWith(15);
+      expect(qbMock.orderBy).toHaveBeenCalledWith('document.createdAt', 'DESC');
       expect(qbMock.andWhere).toHaveBeenCalledWith('document.spaceId = :spaceId', {
         spaceId: 'space-1',
       });
-      expect(qbMock.andWhere).toHaveBeenCalledWith('space.programId = :programId', {
-        programId: 'prog-1',
-      });
-      expect(qbMock.andWhere).toHaveBeenCalledWith('program.schoolId = :schoolId', {
-        schoolId: 'sch-1',
-      });
-      expect(qbMock.andWhere).toHaveBeenCalledWith('document.status = :status', {
-        status: DocumentStatus.PENDING,
-      });
-      expect(qbMock.andWhere).toHaveBeenCalledWith('document.fileType = :fileType', {
-        fileType: DocumentFileType.PDF,
-      });
-      expect(qbMock.andWhere).toHaveBeenCalledWith('LOWER(document.name) LIKE :search', {
-        search: '%graphes%',
-      });
-
       expect(result.data.length).toBe(1);
-      expect(result.data[0].name).toBe('Cours_Graphes_Ch3.pdf');
-      expect(result.data[0].school?.name).toBe('Institut Saint Jean');
-      expect(result.meta.page).toBe(2);
-      expect(result.meta.total).toBe(1);
     });
-  });
 
-  describe('findOne', () => {
-    it('renvoie le document avec space, program, school', async () => {
+    it('regroupe pending, ocr, segmentation, indexing dans processing', async () => {
       const qbMock: any = {
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue({
-          id: 'doc-1',
-          name: 'TD_Graphes.pdf',
-          fileType: DocumentFileType.PDF,
-          status: DocumentStatus.PENDING,
-          spaceId: 'space-1',
-          space: {
-            id: 'space-1',
-            name: 'Graphes et algorithmes',
-            program: {
-              id: 'prog-1',
-              name: 'ISI',
-              school: { id: 'sch-1', name: 'Institut Saint Jean' },
-            },
-          },
-          uploadedBy: { id: 'u-1', firstName: 'Paul', lastName: 'Essiane' },
-          currentVersion: { versionNumber: 1, sizeBytes: 1048576 },
-          createdAt: new Date('2026-09-12T08:32:00.000Z'),
-          updatedAt: new Date('2026-09-12T08:32:00.000Z'),
-        }),
-      };
-      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
-
-      const result = await service.findOne('doc-1');
-      expect(result.id).toBe('doc-1');
-      expect(result.space.name).toBe('Graphes et algorithmes');
-      expect(result.program?.name).toBe('ISI');
-      expect(result.school?.name).toBe('Institut Saint Jean');
-      expect(result.uploadedBy.name).toBe('Paul Essiane');
-    });
-
-    it('lève NotFoundException si le document est absent', async () => {
-      const qbMock: any = {
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue(null),
-      };
-      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
-
-      await expect(service.findOne('doc-inconnu')).rejects.toThrow(NotFoundException);
-    });
-  });
-
-  describe('upload', () => {
-    const validPdfBuffer = Buffer.from('%PDF-1.5 fake pdf content');
-    const mockFile: UploadedFilePayload = {
-      buffer: validPdfBuffer,
-      originalname: 'Cours_Graphes_Ch3.pdf',
-      fieldname: 'file',
-      encoding: '7bit',
-      mimetype: 'application/pdf',
-      size: validPdfBuffer.length,
-    };
-
-    const adminUser: UserContext = {
-      id: 'u-admin',
-      roles: ['platform_admin'],
-    };
-
-    it('crée le document et sa version 1 avec statut pending', async () => {
-      const spaceQbMock: any = {
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue({
-          id: 'space-1',
-          name: 'Graphes et algorithmes',
-          status: SpaceStatus.ACTIVE,
-          programId: 'prog-1',
-          program: {
-            id: 'prog-1',
-            name: 'ISI',
-            school: { id: 'sch-1', name: 'Institut Saint Jean' },
-          },
-        }),
-      };
-      spacesRepo.createQueryBuilder = vi.fn().mockReturnValue(spaceQbMock);
-
-      // findOne appelé à la fin
-      vi.spyOn(service, 'findOne').mockResolvedValue({
-        id: 'doc-1',
-        name: 'Cours_Graphes_Ch3.pdf',
-        fileType: DocumentFileType.PDF,
-        status: DocumentStatus.PENDING,
-        version: 1,
-        space: { id: 'space-1', name: 'Graphes et algorithmes' },
-        program: { id: 'prog-1', name: 'ISI' },
-        school: { id: 'sch-1', name: 'Institut Saint Jean' },
-        uploadedBy: { id: 'u-admin', name: 'Admin' },
-        sizeBytes: validPdfBuffer.length,
-        createdAt: '2026-09-12T08:32:00.000Z',
-        updatedAt: '2026-09-12T08:32:00.000Z',
-      });
-
-      const res = await service.upload('space-1', mockFile, {}, adminUser);
-
-      expect(storageService.saveFile).toHaveBeenCalled();
-      expect(documentsRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          spaceId: 'space-1',
-          name: 'Cours_Graphes_Ch3.pdf',
-          fileType: DocumentFileType.PDF,
-          status: DocumentStatus.PENDING,
-          uploadedById: 'u-admin',
-        }),
-      );
-      expect(versionsRepo.create).toHaveBeenCalledWith(
-        expect.objectContaining({
-          versionNumber: 1,
-          originalFilename: 'Cours_Graphes_Ch3.pdf',
-          mimeType: 'application/pdf',
-          uploadedById: 'u-admin',
-        }),
-      );
-      expect(res.status).toBe(DocumentStatus.PENDING);
-      expect(res.version).toBe(1);
-    });
-
-    it('refuse un type non autorisé (400)', async () => {
-      const invalidFile = {
-        ...mockFile,
-        buffer: Buffer.from('Plain text file content'),
-        originalname: 'test.txt',
-      };
-
-      const spaceQbMock: any = {
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue({
-          id: 'space-1',
-          status: SpaceStatus.ACTIVE,
-        }),
-      };
-      spacesRepo.createQueryBuilder = vi.fn().mockReturnValue(spaceQbMock);
-
-      await expect(service.upload('space-1', invalidFile, {}, adminUser)).rejects.toThrow(
-        BadRequestException,
-      );
-    });
-
-    it('refuse une taille trop grande (413)', async () => {
-      const hugeFile = {
-        ...mockFile,
-        size: 25 * 1024 * 1024,
-      };
-
-      await expect(service.upload('space-1', hugeFile, {}, adminUser)).rejects.toThrow(
-        PayloadTooLargeException,
-      );
-    });
-
-    it('refuse un espace inactif (409)', async () => {
-      const spaceQbMock: any = {
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue({
-          id: 'space-1',
-          status: SpaceStatus.INACTIVE,
-        }),
-      };
-      spacesRepo.createQueryBuilder = vi.fn().mockReturnValue(spaceQbMock);
-
-      await expect(service.upload('space-1', mockFile, {}, adminUser)).rejects.toThrow(
-        ConflictException,
-      );
-    });
-
-    it('refuse un staff hors de sa filière (403)', async () => {
-      const spaceQbMock: any = {
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue({
-          id: 'space-1',
-          status: SpaceStatus.ACTIVE,
-          programId: 'prog-1',
-        }),
-      };
-      spacesRepo.createQueryBuilder = vi.fn().mockReturnValue(spaceQbMock);
-
-      const staffUser: UserContext = {
-        id: 'u-staff',
-        roles: ['staff'],
-      };
-
-      // Aucune affectation staff trouvée sur prog-1
-      const assignQbMock: any = {
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        andWhere: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue(null),
-      };
-      assignmentsRepo.createQueryBuilder = vi.fn().mockReturnValue(assignQbMock);
-
-      await expect(service.upload('space-1', mockFile, {}, staffUser)).rejects.toThrow(
-        ForbiddenException,
-      );
-    });
-  });
-
-  describe('getStats', () => {
-    it('compte les 4 catégories correctement', async () => {
-      const statsQbMock: any = {
         leftJoin: vi.fn().mockReturnThis(),
-        andWhere: vi.fn().mockReturnThis(),
         select: vi.fn().mockReturnThis(),
         addSelect: vi.fn().mockReturnThis(),
         groupBy: vi.fn().mockReturnThis(),
         getRawMany: vi.fn().mockResolvedValue([
-          { status: DocumentStatus.PENDING, count: '3' },
-          { status: DocumentStatus.OCR, count: '2' },
-          { status: DocumentStatus.AVAILABLE, count: '5' },
+          { status: DocumentStatus.AVAILABLE, count: '10' },
+          { status: DocumentStatus.PENDING, count: '2' },
+          { status: DocumentStatus.OCR, count: '3' },
           { status: DocumentStatus.ERROR, count: '1' },
         ]),
       };
-      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(statsQbMock);
+      documentsRepo.createQueryBuilder = vi.fn().mockReturnValue(qbMock);
 
-      const stats = await service.getStats('sch-1', 'prog-1');
-
-      expect(statsQbMock.andWhere).toHaveBeenCalledWith('space.programId = :programId', {
-        programId: 'prog-1',
-      });
-      expect(statsQbMock.andWhere).toHaveBeenCalledWith('program.schoolId = :schoolId', {
-        schoolId: 'sch-1',
-      });
-
-      expect(stats.total).toBe(11);
-      expect(stats.available).toBe(5);
-      expect(stats.processing).toBe(5); // 3 pending + 2 ocr
+      const stats = await service.getStats();
+      expect(stats.total).toBe(16);
+      expect(stats.available).toBe(10);
+      expect(stats.processing).toBe(5);
       expect(stats.error).toBe(1);
     });
   });

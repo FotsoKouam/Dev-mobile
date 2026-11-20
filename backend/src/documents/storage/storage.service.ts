@@ -1,10 +1,11 @@
 import {
   BadRequestException,
   Injectable,
+  NotFoundException,
   PayloadTooLargeException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { existsSync, mkdirSync, writeFileSync, unlinkSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync, unlinkSync, readFileSync } from 'node:fs';
 import { isAbsolute, normalize, resolve } from 'node:path';
 
 @Injectable()
@@ -63,6 +64,14 @@ export class StorageService {
 
   getFilePath(storageKey: string): string {
     return this.resolveSafePath(storageKey);
+  }
+
+  readFile(storageKey: string): Buffer {
+    const filePath = this.resolveSafePath(storageKey);
+    if (!existsSync(filePath)) {
+      throw new NotFoundException(`Fichier introuvable sur le stockage : ${storageKey}`);
+    }
+    return readFileSync(filePath);
   }
 
   deleteFile(storageKey: string): void {

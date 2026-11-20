@@ -2,6 +2,7 @@ export enum AuditActionQuery {
   LOGIN_SUCCESS = 'login_success',
   LOGIN_FAILURE = 'login_failure',
   LOGOUT = 'logout',
+  DOCUMENT_DOWNLOAD = 'document_download',
 }
 
 export enum AuditResult {

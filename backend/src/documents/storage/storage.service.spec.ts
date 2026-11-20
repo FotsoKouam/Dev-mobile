@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ConfigService } from '@nestjs/config';
-import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
-import { existsSync, mkdtempSync, rmSync, readFileSync } from 'node:fs';
+import { BadRequestException, NotFoundException, PayloadTooLargeException } from '@nestjs/common';
+import { existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { StorageService } from './storage.service.js';
@@ -54,13 +54,22 @@ describe('StorageService', () => {
     await expect(service.saveFile(maliciousKey, Buffer.from('bad'))).rejects.toThrow(
       BadRequestException,
     );
+    expect(() => service.readFile(maliciousKey)).toThrow(BadRequestException);
   });
 
   it('refuse un fichier dont la taille dépasse MAX_UPLOAD_MB', async () => {
-    // 5 Mo limit + 1 byte
     const tooLargeBuffer = Buffer.alloc(5 * 1024 * 1024 + 1);
     await expect(
       service.saveFile('test.pdf', tooLargeBuffer),
     ).rejects.toThrow(PayloadTooLargeException);
+  });
+
+  it('readFile lit le fichier ou lève NotFoundException si absent', () => {
+    expect(() => service.readFile('nonexistent.pdf')).toThrow(NotFoundException);
+
+    const testFile = 'existing.pdf';
+    writeFileSync(join(tempStorageDir, testFile), Buffer.from('content'));
+    const content = service.readFile(testFile);
+    expect(content.toString()).toBe('content');
   });
 });

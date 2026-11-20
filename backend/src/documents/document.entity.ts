@@ -31,6 +31,9 @@ export class Document extends BaseEntity {
   })
   status: DocumentStatus;
 
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  errorMessage?: string | null;
+
   @Column({ type: 'uuid', nullable: true })
   currentVersionId?: string | null;
 

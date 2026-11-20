@@ -46,6 +46,9 @@ export class DocumentResponseDto {
   @ApiProperty({ enum: DocumentStatus, example: DocumentStatus.PENDING })
   status: DocumentStatus;
 
+  @ApiPropertyOptional({ example: 'Erreur lors du traitement', nullable: true })
+  errorMessage?: string | null;
+
   @ApiProperty({ example: 1 })
   version: number;
 
