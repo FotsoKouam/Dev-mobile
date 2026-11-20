@@ -6,6 +6,7 @@ import { Page } from './models/school.model';
 import {
   DocumentItem,
   DocumentStats,
+  DocumentVersionItem,
   QueryDocumentsParams,
 } from './models/document.model';
 
@@ -83,5 +84,42 @@ export class DocumentsApiService {
       `${this.config.apiUrl}/api/spaces/${spaceId}/documents`,
       formData,
     );
+  }
+
+  addDocumentVersion(documentId: string, file: File): Observable<DocumentItem> {
+    const formData = new FormData();
+    formData.append('file', file, file.name);
+
+    return this.http.post<DocumentItem>(
+      `${this.baseUrl}/${documentId}/versions`,
+      formData,
+    );
+  }
+
+  getDocumentVersions(
+    documentId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Observable<Page<DocumentVersionItem>> {
+    let params = new HttpParams()
+      .set('page', page.toString())
+      .set('limit', limit.toString());
+
+    return this.http.get<Page<DocumentVersionItem>>(
+      `${this.baseUrl}/${documentId}/versions`,
+      { params },
+    );
+  }
+
+  downloadDocument(documentId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${documentId}/download`, {
+      responseType: 'blob',
+    });
+  }
+
+  downloadDocumentVersion(documentId: string, versionId: string): Observable<Blob> {
+    return this.http.get(`${this.baseUrl}/${documentId}/versions/${versionId}/download`, {
+      responseType: 'blob',
+    });
   }
 }

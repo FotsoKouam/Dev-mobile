@@ -50,6 +50,19 @@ export interface DocumentStats {
   error: number;
 }
 
+export interface DocumentVersionItem {
+  id?: string;
+  versionNumber: number;
+  originalFilename: string;
+  sizeBytes: number;
+  mimeType: string;
+  uploadedBy: {
+    id: string;
+    name: string;
+  };
+  createdAt: string;
+}
+
 export interface QueryDocumentsParams {
   page?: number;
   limit?: number;

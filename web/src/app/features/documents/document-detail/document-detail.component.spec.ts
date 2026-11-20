@@ -1,10 +1,23 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { of, throwError } from 'rxjs';
+import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { DocumentDetailComponent } from './document-detail.component';
+import { DocumentsApiService } from '../../../core/api/documents-api.service';
+import { SessionService } from '../../../core/session.service';
 import { DocumentItem } from '../../../core/api/models/document.model';
 
 describe('DocumentDetailComponent', () => {
   let component: DocumentDetailComponent;
   let fixture: ComponentFixture<DocumentDetailComponent>;
+  let documentsApiSpy: {
+    getDocument: ReturnType<typeof vi.fn>;
+    getDocumentVersions: ReturnType<typeof vi.fn>;
+    downloadDocument: ReturnType<typeof vi.fn>;
+    downloadDocumentVersion: ReturnType<typeof vi.fn>;
+  };
+  let sessionServiceSpy: {
+    hasPermission: ReturnType<typeof vi.fn>;
+  };
 
   const mockDoc: DocumentItem = {
     id: 'doc-1',
@@ -21,9 +34,43 @@ describe('DocumentDetailComponent', () => {
     updatedAt: '2026-09-12T08:32:00.000Z',
   };
 
+  const mockAvailableDoc: DocumentItem = {
+    ...mockDoc,
+    status: 'available',
+  };
+
   beforeEach(async () => {
+    documentsApiSpy = {
+      getDocument: vi.fn().mockReturnValue(of(mockDoc)),
+      getDocumentVersions: vi.fn().mockReturnValue(
+        of({
+          data: [
+            {
+              versionNumber: 1,
+              originalFilename: 'Cours_Graphes_Ch3.pdf',
+              sizeBytes: 2516582,
+              mimeType: 'application/pdf',
+              uploadedBy: { id: 'u-1', name: 'Essiane Paul' },
+              createdAt: '2026-09-12T08:32:00.000Z',
+            },
+          ],
+          meta: { page: 1, limit: 10, total: 1 },
+        }),
+      ),
+      downloadDocument: vi.fn().mockReturnValue(of(new Blob(['pdf content'], { type: 'application/pdf' }))),
+      downloadDocumentVersion: vi.fn().mockReturnValue(of(new Blob(['v1 content'], { type: 'application/pdf' }))),
+    };
+
+    sessionServiceSpy = {
+      hasPermission: vi.fn().mockReturnValue(true),
+    };
+
     await TestBed.configureTestingModule({
       imports: [DocumentDetailComponent],
+      providers: [
+        { provide: DocumentsApiService, useValue: documentsApiSpy },
+        { provide: SessionService, useValue: sessionServiceSpy },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(DocumentDetailComponent);
@@ -43,36 +90,51 @@ describe('DocumentDetailComponent', () => {
     expect(compiled.textContent).toContain('Essiane Paul');
   });
 
-  it('devrait contenir les 4 onglets demandés', () => {
+  it('bouton Télécharger désactivé si le statut n’est pas available', () => {
+    component.document = { ...mockDoc, status: 'pending' };
+    fixture.detectChanges();
+
     const compiled = fixture.nativeElement as HTMLElement;
-    const tabButtons = compiled.querySelectorAll('.tab-btn');
-    expect(tabButtons.length).toBe(4);
+    const downloadBtn = compiled.querySelector<HTMLButtonElement>('.action-btn');
+    expect(downloadBtn?.disabled).toBe(true);
+    expect(downloadBtn?.getAttribute('title')).toBe(
+      component.i18n.documentsPage.detail.actions.downloadTooltipPending,
+    );
   });
 
-  it('les onglets Aperçu, Accès et Historique n appellent pas d API et affichent Bientôt disponible', () => {
-    component.activeTab.set('preview');
-    fixture.detectChanges();
+  it('bouton Télécharger actif si le statut est available et appelle downloadDocument', () => {
+    const availableFixture = TestBed.createComponent(DocumentDetailComponent);
+    const availableComp = availableFixture.componentInstance;
+    availableComp.isOpen = true;
+    availableComp.document = { ...mockDoc, status: 'available' };
+    availableFixture.detectChanges();
 
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.textContent).toContain(component.i18n.common.comingSoon);
+    const compiled = availableFixture.nativeElement as HTMLElement;
+    const downloadBtn = compiled.querySelector<HTMLButtonElement>('.action-btn');
+    expect(downloadBtn?.disabled).toBe(false);
 
-    component.activeTab.set('access');
-    fixture.detectChanges();
-    expect(compiled.textContent).toContain(component.i18n.common.comingSoon);
-
-    component.activeTab.set('versions');
-    fixture.detectChanges();
-    expect(compiled.textContent).toContain(component.i18n.common.comingSoon);
+    availableComp.onDownloadCurrent();
+    expect(documentsApiSpy.downloadDocument).toHaveBeenCalledWith('doc-1');
   });
 
-  it('tous les boutons d action doivent être désactivés avec l info-bulle Bientôt disponible', () => {
-    const compiled = fixture.nativeElement as HTMLElement;
-    const actionButtons = compiled.querySelectorAll<HTMLButtonElement>('.action-btn');
-    expect(actionButtons.length).toBe(4);
+  it('onglet Historique n’appelle l’API qu’à l’ouverture', () => {
+    expect(documentsApiSpy.getDocumentVersions).not.toHaveBeenCalled();
 
-    actionButtons.forEach((btn) => {
-      expect(btn.disabled).toBe(true);
-      expect(btn.getAttribute('title')).toBe(component.i18n.common.comingSoon);
-    });
+    component.onSelectTab('versions');
+    expect(documentsApiSpy.getDocumentVersions).toHaveBeenCalledWith('doc-1');
+  });
+
+  it('onglets Aperçu et Accès n’appellent rien et affichent Bientôt disponible', () => {
+    component.onSelectTab('preview');
+    fixture.detectChanges();
+    let compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain(component.i18n.common.comingSoon);
+
+    component.onSelectTab('access');
+    fixture.detectChanges();
+    compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.textContent).toContain(component.i18n.common.comingSoon);
+
+    expect(documentsApiSpy.getDocumentVersions).not.toHaveBeenCalled();
   });
 });

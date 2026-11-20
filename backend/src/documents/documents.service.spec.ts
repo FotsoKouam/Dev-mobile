@@ -204,6 +204,7 @@ describe('DocumentsService', () => {
         rollbackTransaction: vi.fn().mockResolvedValue(undefined),
         release: vi.fn().mockResolvedValue(undefined),
         manager: {
+          findOne: vi.fn(),
           createQueryBuilder: vi.fn(),
           create: vi.fn((entity, dto) => ({ id: 'ver-2', ...dto })),
           save: vi.fn((entity) => Promise.resolve(entity)),
@@ -212,21 +213,25 @@ describe('DocumentsService', () => {
       dataSource.createQueryRunner = vi.fn().mockReturnValue(queryRunnerMock);
     });
 
-    it('incrémente le versionNumber et met à jour currentVersionId', async () => {
+    it('incrémente le versionNumber et met à jour currentVersionId sans jointure sur le verrou', async () => {
       const docMock = {
         id: 'doc-1',
         name: 'test.pdf',
         fileType: DocumentFileType.PDF,
         status: DocumentStatus.AVAILABLE,
-        space: { id: 'space-1', status: SpaceStatus.ACTIVE },
+        spaceId: 'space-1',
       };
+      const spaceMock = { id: 'space-1', status: SpaceStatus.ACTIVE };
 
-      const docQb: any = {
-        setLock: vi.fn().mockReturnThis(),
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue(docMock),
-      };
+      queryRunnerMock.manager.findOne.mockImplementation((entity: any) => {
+        if (entity === Document) {
+          return Promise.resolve(docMock);
+        }
+        if (entity === Space) {
+          return Promise.resolve(spaceMock);
+        }
+        return Promise.resolve(null);
+      });
 
       const verQb: any = {
         select: vi.fn().mockReturnThis(),
@@ -235,7 +240,6 @@ describe('DocumentsService', () => {
       };
 
       queryRunnerMock.manager.createQueryBuilder.mockImplementation((entity: any) => {
-        if (entity === Document) return docQb;
         if (entity === DocumentVersion) return verQb;
         return {};
       });
@@ -260,6 +264,16 @@ describe('DocumentsService', () => {
       const user: UserContext = { id: 'u-1', roles: ['platform_admin'] };
 
       const result = await service.addVersion('doc-1', file, user);
+
+      // Vérifie que la ligne documents est verrouillée sans jointure
+      expect(queryRunnerMock.manager.findOne).toHaveBeenCalledWith(Document, {
+        where: { id: 'doc-1' },
+        lock: { mode: 'pessimistic_write', tables: ['documents'] },
+      });
+      // Vérifie que l'espace est chargé séparément
+      expect(queryRunnerMock.manager.findOne).toHaveBeenCalledWith(Space, {
+        where: { id: 'space-1' },
+      });
       expect(result.version).toBe(2);
       expect(queryRunnerMock.commitTransaction).toHaveBeenCalled();
       expect(storageService.saveFile).toHaveBeenCalled();
@@ -269,16 +283,15 @@ describe('DocumentsService', () => {
       const docMock = {
         id: 'doc-1',
         status: DocumentStatus.ERROR,
-        space: { id: 'space-1', status: SpaceStatus.ACTIVE },
+        spaceId: 'space-1',
       };
+      const spaceMock = { id: 'space-1', status: SpaceStatus.ACTIVE };
 
-      const docQb: any = {
-        setLock: vi.fn().mockReturnThis(),
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue(docMock),
-      };
-      queryRunnerMock.manager.createQueryBuilder.mockReturnValue(docQb);
+      queryRunnerMock.manager.findOne.mockImplementation((entity: any) => {
+        if (entity === Document) return Promise.resolve(docMock);
+        if (entity === Space) return Promise.resolve(spaceMock);
+        return Promise.resolve(null);
+      });
 
       const file: UploadedFilePayload = {
         buffer: Buffer.from('%PDF-1.4 new version content'),
@@ -294,16 +307,15 @@ describe('DocumentsService', () => {
       const docMock = {
         id: 'doc-1',
         status: DocumentStatus.AVAILABLE,
-        space: { id: 'space-1', status: SpaceStatus.INACTIVE },
+        spaceId: 'space-1',
       };
+      const spaceMock = { id: 'space-1', status: SpaceStatus.INACTIVE };
 
-      const docQb: any = {
-        setLock: vi.fn().mockReturnThis(),
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue(docMock),
-      };
-      queryRunnerMock.manager.createQueryBuilder.mockReturnValue(docQb);
+      queryRunnerMock.manager.findOne.mockImplementation((entity: any) => {
+        if (entity === Document) return Promise.resolve(docMock);
+        if (entity === Space) return Promise.resolve(spaceMock);
+        return Promise.resolve(null);
+      });
 
       const file: UploadedFilePayload = {
         buffer: Buffer.from('%PDF-1.4 new version content'),
@@ -318,16 +330,15 @@ describe('DocumentsService', () => {
       const docMock = {
         id: 'doc-1',
         status: DocumentStatus.AVAILABLE,
-        space: { id: 'space-1', status: SpaceStatus.ACTIVE, programId: 'prog-1' },
+        spaceId: 'space-1',
       };
+      const spaceMock = { id: 'space-1', status: SpaceStatus.ACTIVE, programId: 'prog-1' };
 
-      const docQb: any = {
-        setLock: vi.fn().mockReturnThis(),
-        leftJoinAndSelect: vi.fn().mockReturnThis(),
-        where: vi.fn().mockReturnThis(),
-        getOne: vi.fn().mockResolvedValue(docMock),
-      };
-      queryRunnerMock.manager.createQueryBuilder.mockReturnValue(docQb);
+      queryRunnerMock.manager.findOne.mockImplementation((entity: any) => {
+        if (entity === Document) return Promise.resolve(docMock);
+        if (entity === Space) return Promise.resolve(spaceMock);
+        return Promise.resolve(null);
+      });
 
       const assignQb: any = {
         leftJoinAndSelect: vi.fn().mockReturnThis(),

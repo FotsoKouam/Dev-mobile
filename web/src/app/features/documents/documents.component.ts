@@ -29,6 +29,7 @@ import { StatusBadgeComponent } from '../../shared/ui/status-badge/status-badge.
 import { DataTableComponent, ColumnDef } from '../../shared/ui/data-table/data-table.component';
 import { SpaceFormComponent } from '../../shared/ui/space-form/space-form.component';
 import { DocumentUploadComponent } from './document-upload/document-upload.component';
+import { DocumentVersionUploadComponent } from './document-version-upload/document-version-upload.component';
 import { DocumentDetailComponent } from './document-detail/document-detail.component';
 import { I18N_FR } from '../../shared/i18n/fr';
 
@@ -45,6 +46,7 @@ import { I18N_FR } from '../../shared/i18n/fr';
     DataTableComponent,
     SpaceFormComponent,
     DocumentUploadComponent,
+    DocumentVersionUploadComponent,
     DocumentDetailComponent,
   ],
   templateUrl: './documents.component.html',
@@ -112,8 +114,10 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
   // Modals & Panneaux
   readonly isCreateSpaceModalOpen = signal<boolean>(false);
   readonly isUploadModalOpen = signal<boolean>(false);
+  readonly isVersionUploadModalOpen = signal<boolean>(false);
   readonly isDetailPanelOpen = signal<boolean>(false);
   readonly selectedDocument = signal<DocumentItem | null>(null);
+  readonly documentToReplace = signal<DocumentItem | null>(null);
 
   get canAddDocument(): boolean {
     return this.sessionService.hasPermission('add_document');
@@ -437,6 +441,22 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
   onDocumentUploaded(_newDoc: DocumentItem): void {
     this.loadDocuments();
     this.loadStats();
+  }
+
+  openReplaceVersionModal(doc: DocumentItem): void {
+    this.documentToReplace.set(doc);
+    this.isVersionUploadModalOpen.set(true);
+  }
+
+  onVersionUploaded(updatedDoc: DocumentItem): void {
+    this.isVersionUploadModalOpen.set(false);
+    this.selectedDocument.set(updatedDoc);
+    this.loadDocuments();
+    this.loadStats();
+  }
+
+  onDocumentRefreshed(refreshedDoc: DocumentItem): void {
+    this.selectedDocument.set(refreshedDoc);
   }
 
   openDocumentDetail(doc: DocumentItem): void {

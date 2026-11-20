@@ -107,4 +107,51 @@ describe('DocumentsApiService', () => {
 
     req.flush({ id: 'doc-new', name: 'Mon Super Document' });
   });
+
+  it('addDocumentVersion envoie POST /api/documents/:id/versions avec FormData sans Content-Type forcé', () => {
+    const blob = new Blob(['%PDF-1.4 v2'], { type: 'application/pdf' });
+    const file = new File([blob], 'v2.pdf', { type: 'application/pdf' });
+
+    service.addDocumentVersion('doc-123', file).subscribe();
+
+    const req = httpMock.expectOne(`${mockApiUrl}/api/documents/doc-123/versions`);
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body instanceof FormData).toBe(true);
+
+    const formData = req.request.body as FormData;
+    expect(formData.get('file')).toBeTruthy();
+    expect(req.request.headers.has('Content-Type')).toBe(false);
+
+    req.flush({ id: 'doc-123', version: 2 });
+  });
+
+  it('getDocumentVersions envoie GET /api/documents/:id/versions avec pagination', () => {
+    service.getDocumentVersions('doc-123', 2, 5).subscribe();
+
+    const req = httpMock.expectOne(`${mockApiUrl}/api/documents/doc-123/versions?page=2&limit=5`);
+    expect(req.request.method).toBe('GET');
+    req.flush({ data: [], meta: { page: 2, limit: 5, total: 0 } });
+  });
+
+  it('downloadDocument envoie GET /api/documents/:id/download en Blob', () => {
+    service.downloadDocument('doc-123').subscribe((res) => {
+      expect(res instanceof Blob).toBe(true);
+    });
+
+    const req = httpMock.expectOne(`${mockApiUrl}/api/documents/doc-123/download`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.responseType).toBe('blob');
+    req.flush(new Blob(['file-content'], { type: 'application/pdf' }));
+  });
+
+  it('downloadDocumentVersion envoie GET /api/documents/:id/versions/:versionId/download en Blob', () => {
+    service.downloadDocumentVersion('doc-123', 'ver-456').subscribe((res) => {
+      expect(res instanceof Blob).toBe(true);
+    });
+
+    const req = httpMock.expectOne(`${mockApiUrl}/api/documents/doc-123/versions/ver-456/download`);
+    expect(req.request.method).toBe('GET');
+    expect(req.request.responseType).toBe('blob');
+    req.flush(new Blob(['v1-content'], { type: 'application/pdf' }));
+  });
 });
