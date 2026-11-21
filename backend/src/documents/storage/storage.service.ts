@@ -48,6 +48,10 @@ export class StorageService {
     return safePath;
   }
 
+  getAbsolutePath(storageKey: string): string {
+    return this.resolveSafePath(storageKey);
+  }
+
   async saveFile(storageKey: string, buffer: Buffer): Promise<string> {
     const maxBytes = this.maxUploadMb * 1024 * 1024;
     if (buffer.length > maxBytes) {

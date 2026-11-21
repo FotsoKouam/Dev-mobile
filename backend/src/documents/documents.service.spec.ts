@@ -18,9 +18,11 @@ import { AuditLog } from '../audit/audit-log.entity.js';
 import { StorageService } from './storage/storage.service.js';
 import { DocumentFileType, DocumentStatus } from './document.enums.js';
 import { SpaceStatus } from '../spaces/space.enums.js';
+import { DocumentStatusService } from './document-status.service.js';
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
+  let documentStatusService: DocumentStatusService;
   let documentsRepo: Partial<Record<keyof Repository<Document>, any>>;
   let versionsRepo: Partial<Record<keyof Repository<DocumentVersion>, any>>;
   let spacesRepo: Partial<Record<keyof Repository<Space>, any>>;
@@ -28,6 +30,7 @@ describe('DocumentsService', () => {
   let auditLogsRepo: Partial<Record<keyof Repository<AuditLog>, any>>;
   let storageService: Partial<Record<keyof StorageService, any>>;
   let dataSource: Partial<Record<keyof DataSource, any>>;
+  let ingestionService: any;
 
   beforeEach(() => {
     documentsRepo = {
@@ -68,6 +71,12 @@ describe('DocumentsService', () => {
       createQueryRunner: vi.fn(),
     };
 
+    ingestionService = {
+      process: vi.fn().mockResolvedValue(undefined),
+    };
+
+    documentStatusService = new DocumentStatusService(documentsRepo as any);
+
     service = new DocumentsService(
       documentsRepo as any,
       versionsRepo as any,
@@ -76,6 +85,8 @@ describe('DocumentsService', () => {
       auditLogsRepo as any,
       storageService as any,
       dataSource as any,
+      ingestionService as any,
+      documentStatusService as any,
     );
   });
 

@@ -18,6 +18,8 @@ import { Space } from '../spaces/space.entity.js';
 import { Assignment } from '../assignments/assignment.entity.js';
 import { AuditLog } from '../audit/audit-log.entity.js';
 import { StorageService } from './storage/storage.service.js';
+import { IngestionService } from './ingestion/ingestion.service.js';
+import { DocumentStatusService } from './document-status.service.js';
 import { DocumentFileType, DocumentStatus } from './document.enums.js';
 import { QueryDocumentDto } from './dto/query-document.dto.js';
 import { UploadDocumentDto } from './dto/upload-document.dto.js';
@@ -75,6 +77,8 @@ export class DocumentsService {
     private readonly auditLogsRepository: Repository<AuditLog>,
     private readonly storageService: StorageService,
     private readonly dataSource: DataSource,
+    private readonly ingestionService: IngestionService,
+    private readonly documentStatusService: DocumentStatusService,
   ) {}
 
   detectFileType(buffer: Buffer, originalFilename: string): DetectedFileType {
@@ -155,32 +159,7 @@ export class DocumentsService {
     newStatus: DocumentStatus,
     errorMessage?: string | null,
   ): Promise<Document> {
-    const doc = await this.documentsRepository.findOne({ where: { id: documentId } });
-    if (!doc) {
-      throw new NotFoundException('Document introuvable');
-    }
-
-    const currentStatus = doc.status;
-
-    // Transitions autorisées uniquement :
-    // pending -> available ou error
-    // available -> error
-    // error -> pending
-    const isAllowed =
-      (currentStatus === DocumentStatus.PENDING &&
-        (newStatus === DocumentStatus.AVAILABLE || newStatus === DocumentStatus.ERROR)) ||
-      (currentStatus === DocumentStatus.AVAILABLE && newStatus === DocumentStatus.ERROR) ||
-      (currentStatus === DocumentStatus.ERROR && newStatus === DocumentStatus.PENDING);
-
-    if (!isAllowed) {
-      throw new BadRequestException(
-        `Transition de statut non autorisée : impossible de passer de '${currentStatus}' à '${newStatus}'`,
-      );
-    }
-
-    doc.status = newStatus;
-    doc.errorMessage = newStatus === DocumentStatus.ERROR ? (errorMessage || null) : null;
-    return this.documentsRepository.save(doc);
+    return this.documentStatusService.setStatus(documentId, newStatus, errorMessage);
   }
 
   async upload(
@@ -264,8 +243,12 @@ export class DocumentsService {
 
     try {
       await this.storageService.saveFile(storageKey, file.buffer);
-      // Le document passe automatiquement à AVAILABLE
-      await this.setStatus(savedDoc.id, DocumentStatus.AVAILABLE);
+      // Déclenchement de l ingestion (transformation en chunks)
+      if (this.ingestionService) {
+        await this.ingestionService.process(savedVersion.id);
+      } else {
+        await this.setStatus(savedDoc.id, DocumentStatus.AVAILABLE);
+      }
     } catch (err: any) {
       this.logger.error(`Erreur d écriture stockage pour le document ${savedDoc.id}: ${err?.message}`);
       await this.setStatus(savedDoc.id, DocumentStatus.ERROR, 'Erreur lors de l écriture sur disque');
@@ -301,6 +284,7 @@ export class DocumentsService {
     await queryRunner.startTransaction();
 
     let storageKeyToSave: string;
+    let createdVersionId: string;
 
     try {
       const doc = await queryRunner.manager.findOne(Document, {
@@ -342,6 +326,7 @@ export class DocumentsService {
       const storageKey = `${versionId}${detected.extension}`;
 
       storageKeyToSave = storageKey;
+      createdVersionId = versionId;
 
       const newVersion = queryRunner.manager.create(DocumentVersion, {
         id: versionId,
@@ -384,6 +369,10 @@ export class DocumentsService {
     // Sauvegarde physique après commit
     try {
       await this.storageService.saveFile(storageKeyToSave, file.buffer);
+      // Déclenchement de l ingestion pour la nouvelle version
+      if (this.ingestionService) {
+        await this.ingestionService.process(createdVersionId);
+      }
     } catch (writeErr: any) {
       this.logger.error(`Échec écriture nouvelle version sur disque: ${writeErr?.message}`);
       await this.documentsRepository.update(documentId, {
