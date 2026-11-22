@@ -13,6 +13,9 @@ import { DocumentsController } from './documents.controller.js';
 import { OcrService } from './ingestion/ocr.service.js';
 import { SegmentationService } from './ingestion/segmentation.service.js';
 import { EmbeddingClient } from './ingestion/embedding.client.js';
+import { PdfRasterizer } from './ingestion/pdf-rasterizer.service.js';
+import { PdfRepairService } from './ingestion/pdf-repair.service.js';
+import { OfficeExtractorService } from './ingestion/office-extractor.service.js';
 import { IngestionService } from './ingestion/ingestion.service.js';
 
 @Module({
@@ -34,6 +37,9 @@ import { IngestionService } from './ingestion/ingestion.service.js';
     OcrService,
     SegmentationService,
     EmbeddingClient,
+    PdfRasterizer,
+    PdfRepairService,
+    OfficeExtractorService,
     IngestionService,
   ],
   exports: [
@@ -41,6 +47,9 @@ import { IngestionService } from './ingestion/ingestion.service.js';
     DocumentStatusService,
     StorageService,
     EmbeddingClient,
+    PdfRasterizer,
+    PdfRepairService,
+    OfficeExtractorService,
     IngestionService,
   ],
 })

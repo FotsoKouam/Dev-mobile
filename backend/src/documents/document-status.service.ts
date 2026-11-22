@@ -24,7 +24,7 @@ export class DocumentStatusService {
    * - segmentation -> indexing, available, error
    * - indexing -> available, error
    * - available -> error
-   * - error -> pending
+   * - error -> error (mise à jour du error_message), pending
    */
   async setStatus(
     documentId: string,
@@ -56,7 +56,7 @@ export class DocumentStatusService {
         DocumentStatus.ERROR,
       ],
       [DocumentStatus.AVAILABLE]: [DocumentStatus.ERROR],
-      [DocumentStatus.ERROR]: [DocumentStatus.PENDING],
+      [DocumentStatus.ERROR]: [DocumentStatus.ERROR, DocumentStatus.PENDING],
     };
 
     const isAllowed = allowedMap[currentStatus]?.includes(newStatus);

@@ -98,6 +98,23 @@ describe('IngestionService', () => {
       query: vi.fn().mockResolvedValue([]),
     };
 
+    const pdfRasterizer = {
+      createTempDir: vi.fn().mockResolvedValue('/tmp/raster-test'),
+      removeTempDir: vi.fn().mockResolvedValue(undefined),
+      rasterizeToPng: vi.fn().mockResolvedValue(['/tmp/raster-test/page-1.png']),
+    };
+
+    const pdfRepairService = {
+      createTempDir: vi.fn().mockResolvedValue('/tmp/repair-test'),
+      removeTempDir: vi.fn().mockResolvedValue(undefined),
+      repairPdf: vi.fn().mockResolvedValue('/tmp/repair-test/repaired.pdf'),
+    };
+
+    const officeExtractorService = {
+      extractDocx: vi.fn().mockResolvedValue([{ pageNumber: 1, text: 'DOCX test' }]),
+      extractPptx: vi.fn().mockResolvedValue([{ pageNumber: 1, text: 'PPTX test' }]),
+    };
+
     let runnerCallCount = 0;
     dataSource = {
       createQueryRunner: vi.fn().mockImplementation(() => {
@@ -115,6 +132,9 @@ describe('IngestionService', () => {
       ocrService,
       segmentationService,
       embeddingClient,
+      pdfRasterizer as any,
+      pdfRepairService as any,
+      officeExtractorService as any,
       dataSource,
     );
   });
@@ -228,6 +248,107 @@ describe('IngestionService', () => {
     expect(documentStatusService.setStatus).toHaveBeenCalledWith(
       'doc-scanned',
       DocumentStatus.AVAILABLE,
+    );
+  });
+
+  it('gère l extraction d un document docx', async () => {
+    const versionMock = {
+      id: 'v-docx',
+      storageKey: 'v-docx.docx',
+      originalFilename: 'test.docx',
+      documentId: 'doc-docx',
+      document: {
+        id: 'doc-docx',
+        fileType: DocumentFileType.DOCX,
+        status: DocumentStatus.PENDING,
+      },
+    };
+    versionsRepo.findOne.mockResolvedValue(versionMock);
+    storageService.readFile.mockReturnValue(Buffer.from('docx-binary'));
+
+    await service.process('v-docx');
+
+    expect(documentStatusService.setStatus).toHaveBeenCalledWith(
+      'doc-docx',
+      DocumentStatus.SEGMENTATION,
+    );
+    expect(documentStatusService.setStatus).toHaveBeenCalledWith(
+      'doc-docx',
+      DocumentStatus.AVAILABLE,
+    );
+  });
+
+  it('gère l extraction d un document pptx', async () => {
+    const versionMock = {
+      id: 'v-pptx',
+      storageKey: 'v-pptx.pptx',
+      originalFilename: 'presentation.pptx',
+      documentId: 'doc-pptx',
+      document: {
+        id: 'doc-pptx',
+        fileType: DocumentFileType.PPTX,
+        status: DocumentStatus.PENDING,
+      },
+    };
+    versionsRepo.findOne.mockResolvedValue(versionMock);
+    storageService.readFile.mockReturnValue(Buffer.from('pptx-binary'));
+
+    await service.process('v-pptx');
+
+    expect(documentStatusService.setStatus).toHaveBeenCalledWith(
+      'doc-pptx',
+      DocumentStatus.SEGMENTATION,
+    );
+    expect(documentStatusService.setStatus).toHaveBeenCalledWith(
+      'doc-pptx',
+      DocumentStatus.AVAILABLE,
+    );
+  });
+
+  it('échoue avec statut error et message spécifique si le PDF est corrompu', async () => {
+    const corruptService = new IngestionService(
+      documentsRepo,
+      versionsRepo,
+      chunksRepo,
+      storageService,
+      documentStatusService,
+      ocrService,
+      segmentationService,
+      embeddingClient,
+      {
+        createTempDir: vi.fn(),
+        removeTempDir: vi.fn(),
+        rasterizeToPng: vi.fn(),
+      } as any,
+      {
+        createTempDir: vi.fn().mockResolvedValue('/tmp/repair'),
+        removeTempDir: vi.fn().mockResolvedValue(undefined),
+        repairPdf: vi.fn().mockRejectedValue(new Error('qpdf repair failed')),
+      } as any,
+      {} as any,
+      dataSource,
+    );
+
+    const versionMock = {
+      id: 'v-corrupt',
+      storageKey: 'v-corrupt.pdf',
+      originalFilename: 'bad-xref.pdf',
+      documentId: 'doc-corrupt',
+      document: {
+        id: 'doc-corrupt',
+        fileType: DocumentFileType.PDF,
+        status: DocumentStatus.PENDING,
+      },
+    };
+    versionsRepo.findOne.mockResolvedValue(versionMock);
+    storageService.readFile.mockReturnValue(Buffer.from('%PDF-1.4 bad XRef entry'));
+
+    await expect(corruptService.process('v-corrupt')).rejects.toThrow();
+
+    expect(documentStatusService.setStatus).toHaveBeenCalledWith(
+      'doc-corrupt',
+      DocumentStatus.ERROR,
+      'Fichier PDF invalide ou corrompu.',
     );
   });
 
