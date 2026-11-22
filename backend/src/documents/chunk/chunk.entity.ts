@@ -25,4 +25,7 @@ export class Chunk extends BaseEntity {
 
   @Column({ type: 'varchar', length: 10 })
   source: ChunkSource;
+
+  @Column({ type: 'text', nullable: true, select: false })
+  embedding?: string | null;
 }

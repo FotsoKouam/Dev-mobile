@@ -149,8 +149,44 @@ export class DocumentsService {
       }
     }
 
+    // Rejet explicite des anciens formats Office binaires
+    if (ext === '.doc' || ext === '.ppt') {
+      throw new BadRequestException(
+        'Les anciens formats binaires (.doc, .ppt) ne sont pas pris en charge. Veuillez les convertir au format moderne (.docx, .pptx).',
+      );
+    }
+
+    // Formats ZIP / OpenXML : PK\x03\x04 (50 4B 03 04)
+    if (
+      buffer[0] === 0x50 &&
+      buffer[1] === 0x4b &&
+      buffer[2] === 0x03 &&
+      buffer[3] === 0x04
+    ) {
+      if (ext === '.docx') {
+        return {
+          mimeType:
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          fileType: DocumentFileType.DOCX,
+          extension: '.docx',
+        };
+      }
+      if (ext === '.pptx') {
+        return {
+          mimeType:
+            'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          fileType: DocumentFileType.PPTX,
+          extension: '.pptx',
+        };
+      }
+
+      throw new BadRequestException(
+        'Format ZIP non pris en charge. Seuls les documents Word (.docx) et présentations PowerPoint (.pptx) sont autorisés.',
+      );
+    }
+
     throw new BadRequestException(
-      'Format de fichier non autorisé. Formats acceptés : PDF, JPEG, PNG, HEIC.',
+      'Format de fichier non autorisé. Formats acceptés : PDF, JPEG, PNG, HEIC, DOCX, PPTX.',
     );
   }
 

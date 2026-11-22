@@ -21,10 +21,10 @@ export class DocumentStatusService {
    * Transitions autorisées :
    * - pending -> ocr, segmentation, available, error
    * - ocr -> segmentation, error
-   * - segmentation -> available, error
+   * - segmentation -> indexing, available, error
    * - indexing -> available, error
    * - available -> error
-   * - error -> pending
+   * - error -> error (mise à jour du error_message), pending
    */
   async setStatus(
     documentId: string,
@@ -47,6 +47,7 @@ export class DocumentStatusService {
       ],
       [DocumentStatus.OCR]: [DocumentStatus.SEGMENTATION, DocumentStatus.ERROR],
       [DocumentStatus.SEGMENTATION]: [
+        DocumentStatus.INDEXING,
         DocumentStatus.AVAILABLE,
         DocumentStatus.ERROR,
       ],
@@ -55,7 +56,7 @@ export class DocumentStatusService {
         DocumentStatus.ERROR,
       ],
       [DocumentStatus.AVAILABLE]: [DocumentStatus.ERROR],
-      [DocumentStatus.ERROR]: [DocumentStatus.PENDING],
+      [DocumentStatus.ERROR]: [DocumentStatus.ERROR, DocumentStatus.PENDING],
     };
 
     const isAllowed = allowedMap[currentStatus]?.includes(newStatus);

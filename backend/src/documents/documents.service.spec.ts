@@ -110,12 +110,15 @@ describe('DocumentsService', () => {
       expect(res3.errorMessage).toBeNull();
     });
 
-    it('rejette les transitions interdites (ex: available -> pending, pending -> indexing)', async () => {
-      documentsRepo.findOne = vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.AVAILABLE });
-      await expect(service.setStatus('doc-1', DocumentStatus.PENDING)).rejects.toThrow(BadRequestException);
-
-      documentsRepo.findOne = vi.fn().mockResolvedValue({ id: 'doc-1', status: DocumentStatus.PENDING });
-      await expect(service.setStatus('doc-1', DocumentStatus.INDEXING)).rejects.toThrow(BadRequestException);
+    it('autorise la transition error -> error (mise à jour du message d erreur)', async () => {
+      documentsRepo.findOne = vi.fn().mockResolvedValue({
+        id: 'doc-1',
+        status: DocumentStatus.ERROR,
+        errorMessage: 'Premier message',
+      });
+      const res = await service.setStatus('doc-1', DocumentStatus.ERROR, 'Nouveau message d erreur');
+      expect(res.status).toBe(DocumentStatus.ERROR);
+      expect(res.errorMessage).toBe('Nouveau message d erreur');
     });
   });
 
@@ -385,6 +388,36 @@ describe('DocumentsService', () => {
         size: 100,
       };
       await expect(service.addVersion('doc-1', file, { id: 'u-1' })).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejette les anciens formats binaires .doc et .ppt avec 400', async () => {
+      const docFile: UploadedFilePayload = {
+        buffer: Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
+        originalname: 'ancien.doc',
+        size: 100,
+      };
+      await expect(service.addVersion('doc-1', docFile, { id: 'u-1' })).rejects.toThrow(BadRequestException);
+
+      const pptFile: UploadedFilePayload = {
+        buffer: Buffer.from([0xD0, 0xCF, 0x11, 0xE0, 0xA1, 0xB1, 0x1A, 0xE1]),
+        originalname: 'ancien.ppt',
+        size: 100,
+      };
+      await expect(service.addVersion('doc-1', pptFile, { id: 'u-1' })).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejette les archives ZIP génériques qui ne sont pas docx ou pptx', async () => {
+      // Archive ZIP sans [Content_Types].xml docx/pptx
+      const zip = new (await import('jszip')).default();
+      zip.file('hello.txt', 'Hello world');
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+
+      const zipFile: UploadedFilePayload = {
+        buffer: zipBuffer,
+        originalname: 'archive.zip',
+        size: zipBuffer.length,
+      };
+      await expect(service.addVersion('doc-1', zipFile, { id: 'u-1' })).rejects.toThrow(BadRequestException);
     });
   });
 

@@ -2,6 +2,8 @@ export enum DocumentFileType {
   PDF = 'pdf',
   SCANNED_PDF = 'scanned_pdf',
   IMAGE = 'image',
+  DOCX = 'docx',
+  PPTX = 'pptx',
 }
 
 export enum DocumentStatus {
