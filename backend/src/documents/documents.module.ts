@@ -12,6 +12,7 @@ import { DocumentStatusService } from './document-status.service.js';
 import { DocumentsController } from './documents.controller.js';
 import { OcrService } from './ingestion/ocr.service.js';
 import { SegmentationService } from './ingestion/segmentation.service.js';
+import { EmbeddingClient } from './ingestion/embedding.client.js';
 import { IngestionService } from './ingestion/ingestion.service.js';
 
 @Module({
@@ -32,12 +33,14 @@ import { IngestionService } from './ingestion/ingestion.service.js';
     StorageService,
     OcrService,
     SegmentationService,
+    EmbeddingClient,
     IngestionService,
   ],
   exports: [
     DocumentsService,
     DocumentStatusService,
     StorageService,
+    EmbeddingClient,
     IngestionService,
   ],
 })

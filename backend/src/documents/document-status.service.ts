@@ -21,7 +21,7 @@ export class DocumentStatusService {
    * Transitions autorisées :
    * - pending -> ocr, segmentation, available, error
    * - ocr -> segmentation, error
-   * - segmentation -> available, error
+   * - segmentation -> indexing, available, error
    * - indexing -> available, error
    * - available -> error
    * - error -> pending
@@ -47,6 +47,7 @@ export class DocumentStatusService {
       ],
       [DocumentStatus.OCR]: [DocumentStatus.SEGMENTATION, DocumentStatus.ERROR],
       [DocumentStatus.SEGMENTATION]: [
+        DocumentStatus.INDEXING,
         DocumentStatus.AVAILABLE,
         DocumentStatus.ERROR,
       ],

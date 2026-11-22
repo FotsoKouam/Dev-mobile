@@ -12,6 +12,7 @@ import { StorageService } from '../storage/storage.service.js';
 import { DocumentStatusService } from '../document-status.service.js';
 import { OcrService } from './ocr.service.js';
 import { SegmentationService } from './segmentation.service.js';
+import { EmbeddingClient } from './embedding.client.js';
 
 export interface PageExtracted {
   pageNumber: number;
@@ -33,15 +34,15 @@ export class IngestionService {
     private readonly documentStatusService: DocumentStatusService,
     private readonly ocrService: OcrService,
     private readonly segmentationService: SegmentationService,
+    private readonly embeddingClient: EmbeddingClient,
     private readonly dataSource: DataSource,
   ) {}
 
   /**
-   * Traite l'ingestion d'une version de document pour générer les passages (chunks).
+   * Traite l'ingestion d'une version de document pour générer les passages (chunks) et leurs embeddings.
    *
-   * Transitions de statut :
-   * pending -> (ocr si besoin) -> segmentation -> available
-   * En cas d'échec : error avec message générique (sans chemin ni trace).
+   * Enchaînement : extraction -> segmentation -> indexing (embeddings) -> available.
+   * En cas d'échec : error avec message générique.
    */
   async process(documentVersionId: string): Promise<void> {
     const version = await this.versionsRepository.findOne({
@@ -111,7 +112,8 @@ export class IngestionService {
       await this.documentStatusService.setStatus(doc.id, DocumentStatus.SEGMENTATION);
       const segmentedItems = this.segmentationService.segment(pages, 800, 100);
 
-      // Remplacement en bloc dans une transaction (suppression puis insertion)
+      // Remplacement en bloc dans une transaction (suppression puis insertion des chunks sans vecteur)
+      let savedChunks: Chunk[] = [];
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
@@ -129,10 +131,11 @@ export class IngestionService {
               chunkIndex: index,
               content: item.content,
               source,
+              embedding: null,
             }),
           );
 
-          await queryRunner.manager.save(chunkEntities);
+          savedChunks = await queryRunner.manager.save(chunkEntities);
         }
 
         await queryRunner.commitTransaction();
@@ -143,17 +146,51 @@ export class IngestionService {
         await queryRunner.release();
       }
 
-      // Transition finale vers available
+      // Étape d'indexation (vectorisation pgvector)
+      if (savedChunks.length > 0) {
+        await this.documentStatusService.setStatus(doc.id, DocumentStatus.INDEXING);
+
+        const textsToEmbed = savedChunks.map((c) => c.content);
+        const embeddings = await this.embeddingClient.embedPassages(textsToEmbed);
+
+        if (embeddings.length !== savedChunks.length) {
+          throw new Error("Nombre d'embeddings incomplet reçu du service");
+        }
+
+        // Mise à jour par lot dans une transaction : UPDATE chunks SET embedding = $1 WHERE id = $2
+        const embedRunner = this.dataSource.createQueryRunner();
+        await embedRunner.connect();
+        await embedRunner.startTransaction();
+
+        try {
+          for (let i = 0; i < savedChunks.length; i++) {
+            const chunkId = savedChunks[i].id;
+            const vectorString = `[${embeddings[i].join(',')}]`;
+            await embedRunner.query(
+              `UPDATE chunks SET embedding = $1 WHERE id = $2`,
+              [vectorString, chunkId],
+            );
+          }
+          await embedRunner.commitTransaction();
+        } catch (embedDbErr) {
+          await embedRunner.rollbackTransaction();
+          throw embedDbErr;
+        } finally {
+          await embedRunner.release();
+        }
+      }
+
+      // Transition finale vers available seulement si tout s'est bien déroulé
       await this.documentStatusService.setStatus(doc.id, DocumentStatus.AVAILABLE);
     } catch (err: any) {
       this.logger.error(
         `Erreur lors de l ingestion de la version ${documentVersionId}: ${err?.message}`,
       );
-      // Positionner le statut error avec un message générique sans chemin ni stack trace
+      // Positionner le statut error avec le message générique imposé
       await this.documentStatusService.setStatus(
         doc.id,
         DocumentStatus.ERROR,
-        'Une erreur est survenue lors de l extraction et du traitement du document.',
+        "Le service d'indexation est indisponible.",
       );
       throw err;
     }
