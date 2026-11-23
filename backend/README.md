@@ -100,6 +100,43 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Déploiement Render
+
+Le backend s'exécute dans un conteneur Docker incluant les binaires d'extraction et d'OCR (`tesseract-ocr`, `tesseract-ocr-fra`, `poppler-utils` pour `pdftoppm`, et `qpdf`).
+
+### Ordre de déploiement
+1. Déployer d'abord le service d'embeddings **`rag-embeddings`** (depuis le dossier `embedding-service/`).
+2. Déployer ensuite le service backend **`rag-backend`** (depuis le dossier `backend/`).
+
+### Configuration du service `rag-backend` sur Render
+- **Type :** Web Service
+- **Runtime :** Docker
+- **Root Directory :** `backend`
+- **Plan recommandé :** Starter ou supérieur
+
+#### Variables d'environnement à définir manuellement dans Render
+
+| Variable | Description / Rôle | Exemple de valeur |
+|---|---|---|
+| `DATABASE_URL` | URL de connexion PostgreSQL (branche production Neon) | `postgresql://user:pass@ep-xyz.eu-central-1.aws.neon.tech/neondb?sslmode=require` |
+| `DATABASE_SSL` | Activation SSL PostgreSQL | `true` |
+| `GOOGLE_CLIENT_ID` | Client ID Google OAuth | `xxxx.apps.googleusercontent.com` |
+| `JWT_ACCESS_SECRET` | Clé secrète de signature des tokens d'accès | *Chaîne aléatoire secrète* |
+| `JWT_REFRESH_SECRET` | Clé secrète de signature des refresh tokens | *Chaîne aléatoire secrète distincte* |
+| `JWT_ACCESS_TTL` | Durée de vie du token d'accès | `15m` |
+| `JWT_REFRESH_TTL` | Durée de vie du refresh token | `7d` |
+| `ADMIN_SEED_PASSWORD` | Mot de passe initial administrateur | *Mot de passe fort* |
+| `EMBEDDING_SERVICE_URL` | URL du service d'embeddings déployé | `https://rag-embeddings-xxxx.onrender.com` |
+| `EMBEDDING_TIMEOUT_MS` | Timeout des requêtes vers le service d'embeddings | `30000` |
+| `TESSERACT_PATH` | Commande / exécutable Tesseract | `tesseract` |
+| `TESSERACT_LANG` | Langue OCR principale | `fra` |
+| `PDFTOPPM_PATH` | Commande Poppler de rasterisation | `pdftoppm` |
+| `QPDF_PATH` | Commande de réparation PDF | `qpdf` |
+| `STORAGE_PATH` | Répertoire de stockage local des versions | `./storage` |
+| `MAX_UPLOAD_MB` | Taille maximale par fichier en Mo | `20` |
+
+---
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.

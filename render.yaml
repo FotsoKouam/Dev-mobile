@@ -1,0 +1,56 @@
+services:
+  - type: web
+    name: rag-embeddings
+    runtime: docker
+    rootDir: embedding-service
+    plan: standard # Recommandé : au moins 2 Go de RAM pour sentence-transformers et multilingual-e5-base
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 8001
+      - key: HOST
+        value: 0.0.0.0
+
+  - type: web
+    name: rag-backend
+    runtime: docker
+    rootDir: backend
+    plan: starter
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 3000
+      - key: NODE_ENV
+        value: production
+      - key: TESSERACT_PATH
+        value: tesseract
+      - key: TESSERACT_LANG
+        value: fra
+      - key: PDFTOPPM_PATH
+        value: pdftoppm
+      - key: QPDF_PATH
+        value: qpdf
+      - key: EMBEDDING_TIMEOUT_MS
+        value: 30000
+      - key: STORAGE_PATH
+        value: ./storage
+      - key: MAX_UPLOAD_MB
+        value: 20
+      - key: EMBEDDING_SERVICE_URL
+        sync: false # Renseigner avec l'URL publique ou interne de rag-embeddings
+      - key: DATABASE_URL
+        sync: false # Chaîne secrète Neon avec SSL
+      - key: DATABASE_SSL
+        value: "true"
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        sync: false
+      - key: JWT_REFRESH_SECRET
+        sync: false
+      - key: JWT_ACCESS_TTL
+        value: 15m
+      - key: JWT_REFRESH_TTL
+        value: 7d
+      - key: ADMIN_SEED_PASSWORD
+        sync: false

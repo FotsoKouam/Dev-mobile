@@ -63,6 +63,15 @@ async function bootstrap() {
     process.exit(1);
   }
 
+  // Vérification EMBEDDING_SERVICE_URL en production (avertissement explicite sans bloquer le démarrage)
+  const embeddingServiceUrl = configService.get<string>('EMBEDDING_SERVICE_URL');
+  const nodeEnv = configService.get<string>('NODE_ENV') || process.env.NODE_ENV;
+  if ((nodeEnv === 'production' || process.env.RENDER) && (!embeddingServiceUrl || embeddingServiceUrl.trim() === '')) {
+    console.warn(
+      '[WARN] EMBEDDING_SERVICE_URL est absente en production. Les documents ingérés échoueront lors de la vectorisation.',
+    );
+  }
+
   // Préfixe global api, en excluant la route racine GET /
   app.setGlobalPrefix('api', {
     exclude: [{ path: '/', method: RequestMethod.GET }],
