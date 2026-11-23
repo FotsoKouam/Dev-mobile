@@ -2,6 +2,35 @@
 
 Micro-service FastAPI calculant les vecteurs sémantiques (embeddings) de dimension 768 via le modèle `intfloat/multilingual-e5-base` (décision ADR 0001).
 
+## Déploiement Render
+
+Le service d'embeddings s'exécute dans un conteneur Docker Python avec pré-téléchargement du modèle `intfloat/multilingual-e5-base` (~1,1 Go) lors du build Docker.
+
+### Ordre de déploiement
+Déployer **`rag-embeddings` en premier**, avant de configurer `EMBEDDING_SERVICE_URL` sur `rag-backend`.
+
+### Configuration du service `rag-embeddings` sur Render
+- **Type :** Web Service
+- **Runtime :** Docker
+- **Root Directory :** `embedding-service`
+- **Plan recommandé :** Standard ou supérieur (**au moins 2 Go de RAM** exigés pour le modèle et SentenceTransformer).
+
+#### Variables d'environnement à définir manuellement dans Render
+
+| Variable | Description / Rôle | Exemple de valeur |
+|---|---|---|
+| `PORT` | Port d'écoute du serveur FastAPI (fourni par Render) | `8001` ou `10000` |
+| `HOST` | Interface réseau d'écoute dans le conteneur | `0.0.0.0` |
+
+Une fois le service déployé, tester l'URL publique :
+```bash
+curl https://<rag-embeddings-url>/health
+# Réponse attendue : {"status":"ok","model":"multilingual-e5-base","dimension":768}
+```
+L'URL obtenue servira à renseigner `EMBEDDING_SERVICE_URL` dans le service `rag-backend`.
+
+---
+
 ## Prérequis
 
 - Python 3.10+

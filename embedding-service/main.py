@@ -99,7 +99,10 @@ def embed(request: EmbedRequest):
 
 
 if __name__ == "__main__":
+    import os
     import uvicorn
 
-    # Écouter sur 127.0.0.1 uniquement
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+    # Hôte et port configurables par environnement (défaut local 127.0.0.1:8001)
+    host = os.getenv("HOST", "127.0.0.1")
+    port = int(os.getenv("PORT", "8001"))
+    uvicorn.run(app, host=host, port=port)
