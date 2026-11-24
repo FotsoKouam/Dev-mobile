@@ -1,104 +1,148 @@
 import { Injectable, Logger } from '@nestjs/common';
 
-export interface EmbedResponsePayload {
-  embeddings: number[][];
-  dimension: number;
-}
+/** Tâche d'embedding Gemini (ADR 0002) */
+export type GeminiTaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
 
 @Injectable()
 export class EmbeddingClient {
   private readonly logger = new Logger(EmbeddingClient.name);
-  private readonly serviceUrl: string;
-  private readonly timeoutMs: number;
-  private readonly batchSize = 16;
+  private readonly apiKey: string | undefined;
+  private readonly model = 'gemini-embedding-2';
   private readonly expectedDimension = 768;
+  private readonly batchSize = 16;
+  private readonly maxRetries = 2;
+
+  // URL de base de l'API Gemini Embedding
+  private readonly apiBase =
+    'https://generativelanguage.googleapis.com/v1beta/models';
 
   constructor() {
-    this.serviceUrl = process.env.EMBEDDING_SERVICE_URL || 'http://127.0.0.1:8001';
-    this.timeoutMs = parseInt(process.env.EMBEDDING_TIMEOUT_MS || '30000', 10);
+    this.apiKey = process.env.GEMINI_API_KEY;
   }
 
   /**
-   * Vectorise une liste de textes en découpant par lots de 16.
-   * Ajoute le préfixe "passage: " requis par la convention multilingual-e5.
-   * Valide que chaque vecteur fait exactement 768 dimensions.
+   * Vectorise une liste de passages pour l'indexation (RETRIEVAL_DOCUMENT).
+   * Découpe par lots, valide les dimensions, normalise en L2.
    */
   async embedPassages(texts: string[]): Promise<number[][]> {
+    return this.embed(texts, 'RETRIEVAL_DOCUMENT');
+  }
+
+  /**
+   * Vectorise une question pour la recherche (RETRIEVAL_QUERY).
+   * À utiliser lors des requêtes RAG (non appelé dans ce brief).
+   */
+  async embedQuery(text: string): Promise<number[]> {
+    const result = await this.embed([text], 'RETRIEVAL_QUERY');
+    return result[0];
+  }
+
+  private async embed(texts: string[], taskType: GeminiTaskType): Promise<number[][]> {
     if (!texts || texts.length === 0) {
       return [];
     }
 
+    if (!this.apiKey) {
+      this.logger.error('GEMINI_API_KEY absente : impossible de calculer les embeddings.');
+      throw new Error("Le service d'embeddings est indisponible.");
+    }
+
     const allEmbeddings: number[][] = [];
 
-    // Envoi par lots de 16
     for (let i = 0; i < texts.length; i += this.batchSize) {
       const batch = texts.slice(i, i + this.batchSize);
-      // Préfixe passage: obligatoire
-      const prefixedTexts = batch.map((t) => `passage: ${t}`);
-
-      const batchEmbeddings = await this.callEmbedApi(prefixedTexts);
-
-      if (batchEmbeddings.length !== batch.length) {
-        this.logger.error(
-          `Nombre de vecteurs retourné (${batchEmbeddings.length}) différent du nombre envoyé (${batch.length})`,
-        );
-        throw new Error("Erreur de dimension dans la réponse du service d'embeddings");
-      }
-
-      for (const emb of batchEmbeddings) {
-        if (!Array.isArray(emb) || emb.length !== this.expectedDimension) {
-          this.logger.error(
-            `Dimension de vecteur non conforme reçue: ${emb?.length} (attendu: ${this.expectedDimension})`,
-          );
-          throw new Error("Dimension d'embedding non conforme");
-        }
-      }
-
+      const batchEmbeddings = await this.callGeminiApi(batch, taskType);
       allEmbeddings.push(...batchEmbeddings);
     }
 
     return allEmbeddings;
   }
 
-  private async callEmbedApi(prefixedTexts: string[]): Promise<number[][]> {
-    const url = `${this.serviceUrl.replace(/\/+$/, '')}/embed`;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), this.timeoutMs);
+  private async callGeminiApi(
+    texts: string[],
+    taskType: GeminiTaskType,
+    attempt = 0,
+  ): Promise<number[][]> {
+    const url = `${this.apiBase}/${this.model}:batchEmbedContents?key=${this.apiKey}`;
 
+    const body = {
+      requests: texts.map((text) => ({
+        model: `models/${this.model}`,
+        content: { parts: [{ text }] },
+        taskType,
+        outputDimensionality: this.expectedDimension,
+      })),
+    };
+
+    let response: Response;
     try {
-      const response = await fetch(url, {
+      response = await fetch(url, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ texts: prefixedTexts }),
-        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
       });
-
-      if (!response.ok) {
-        this.logger.error(`Échec appel embedding service: HTTP ${response.status}`);
-        throw new Error(`Embedding service returned HTTP ${response.status}`);
-      }
-
-      const data = (await response.json()) as EmbedResponsePayload;
-
-      if (!data || !Array.isArray(data.embeddings) || data.dimension !== this.expectedDimension) {
-        this.logger.error(
-          `Réponse non conforme du service d'embeddings: dimension=${data?.dimension}`,
-        );
-        throw new Error("Réponse non conforme du service d'embeddings");
-      }
-
-      return data.embeddings;
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        this.logger.error(`Timeout lors de l'appel au service d'embeddings (${this.timeoutMs}ms)`);
-        throw new Error("Timeout du service d'embeddings");
-      }
-      this.logger.error(`Erreur réseau/appel embedding: ${err?.message}`);
-      throw err;
-    } finally {
-      clearTimeout(timeout);
+    } catch (networkErr: any) {
+      this.logger.error(`Erreur réseau appel Gemini Embedding: ${networkErr?.message}`);
+      throw new Error("Le service d'embeddings est indisponible.");
     }
+
+    // 429 : trop de requêtes → attendre 1 s puis réessayer (max 2 tentatives)
+    if (response.status === 429) {
+      if (attempt < this.maxRetries) {
+        this.logger.warn(
+          `Gemini Embedding 429 (tentative ${attempt + 1}/${this.maxRetries}). Nouvelle tentative dans 1 s.`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        return this.callGeminiApi(texts, taskType, attempt + 1);
+      }
+      this.logger.error('Gemini Embedding 429 : quota dépassé après 2 tentatives.');
+      throw new Error("Le service d'embeddings est indisponible.");
+    }
+
+    if (!response.ok) {
+      this.logger.error(`Gemini Embedding HTTP ${response.status} : réponse non valide.`);
+      throw new Error("Le service d'embeddings est indisponible.");
+    }
+
+    let data: any;
+    try {
+      data = await response.json();
+    } catch {
+      this.logger.error('Réponse Gemini Embedding non lisible (JSON invalide).');
+      throw new Error("Le service d'embeddings est indisponible.");
+    }
+
+    if (!Array.isArray(data?.embeddings)) {
+      this.logger.error('Réponse Gemini Embedding : champ embeddings manquant ou invalide.');
+      throw new Error("Le service d'embeddings est indisponible.");
+    }
+
+    if (data.embeddings.length !== texts.length) {
+      this.logger.error(
+        `Gemini Embedding : nombre de vecteurs reçus (${data.embeddings.length}) ≠ envoyés (${texts.length}).`,
+      );
+      throw new Error("Le service d'embeddings est indisponible.");
+    }
+
+    const result: number[][] = [];
+    for (let i = 0; i < data.embeddings.length; i++) {
+      const values: number[] = data.embeddings[i]?.values;
+      if (!Array.isArray(values) || values.length !== this.expectedDimension) {
+        this.logger.error(
+          `Gemini Embedding : dimension non conforme (reçu ${values?.length}, attendu ${this.expectedDimension}).`,
+        );
+        throw new Error("Le service d'embeddings est indisponible.");
+      }
+      result.push(this.normalizeL2(values));
+    }
+
+    return result;
+  }
+
+  /** Normalisation L2 d'un vecteur (norme L2 unitaire). */
+  private normalizeL2(vec: number[]): number[] {
+    const norm = Math.sqrt(vec.reduce((sum, v) => sum + v * v, 0));
+    if (norm === 0) return vec;
+    return vec.map((v) => v / norm);
   }
 }
