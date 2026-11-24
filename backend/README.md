@@ -102,11 +102,10 @@ $ npm run test:cov
 
 ## Déploiement Render
 
-Le backend s'exécute dans un conteneur Docker incluant les binaires d'extraction et d'OCR (`tesseract-ocr`, `tesseract-ocr-fra`, `poppler-utils` pour `pdftoppm`, et `qpdf`).
+Le backend s'exécute dans un conteneur Docker incluant les binaires d'extraction et d'OCR (`tesseract-ocr`, `tesseract-ocr-fra`, `poppler-utils` pour `pdftoppm`, et `qpdf`). Les embeddings sont calculés via l'API Gemini (ADR 0002) ; aucun service d'embeddings séparé n'est nécessaire.
 
 ### Ordre de déploiement
-1. Déployer d'abord le service d'embeddings **`rag-embeddings`** (depuis le dossier `embedding-service/`).
-2. Déployer ensuite le service backend **`rag-backend`** (depuis le dossier `backend/`).
+1. Déployer **`rag-backend`** (le seul service nécessaire).
 
 ### Configuration du service `rag-backend` sur Render
 - **Type :** Web Service
@@ -126,14 +125,15 @@ Le backend s'exécute dans un conteneur Docker incluant les binaires d'extractio
 | `JWT_ACCESS_TTL` | Durée de vie du token d'accès | `15m` |
 | `JWT_REFRESH_TTL` | Durée de vie du refresh token | `7d` |
 | `ADMIN_SEED_PASSWORD` | Mot de passe initial administrateur | *Mot de passe fort* |
-| `EMBEDDING_SERVICE_URL` | URL du service d'embeddings déployé | `https://rag-embeddings-xxxx.onrender.com` |
-| `EMBEDDING_TIMEOUT_MS` | Timeout des requêtes vers le service d'embeddings | `30000` |
+| `GEMINI_API_KEY` | Clé API Gemini pour les embeddings (ADR 0002) | *Clé secrète — ne jamais committer* |
 | `TESSERACT_PATH` | Commande / exécutable Tesseract | `tesseract` |
 | `TESSERACT_LANG` | Langue OCR principale | `fra` |
 | `PDFTOPPM_PATH` | Commande Poppler de rasterisation | `pdftoppm` |
 | `QPDF_PATH` | Commande de réparation PDF | `qpdf` |
 | `STORAGE_PATH` | Répertoire de stockage local des versions | `./storage` |
 | `MAX_UPLOAD_MB` | Taille maximale par fichier en Mo | `20` |
+
+> **Confidentialité (niveau gratuit Gemini)** : seuls les documents de démonstration non sensibles doivent être indexés tant que le niveau gratuit est actif. Basculer en niveau payant dès que des données réelles sont traitées (aucun changement de code ni de dimension requis).
 
 ---
 

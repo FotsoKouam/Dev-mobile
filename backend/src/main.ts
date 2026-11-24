@@ -63,12 +63,12 @@ async function bootstrap() {
     process.exit(1);
   }
 
-  // Vérification EMBEDDING_SERVICE_URL en production (avertissement explicite sans bloquer le démarrage)
-  const embeddingServiceUrl = configService.get<string>('EMBEDDING_SERVICE_URL');
+  // Vérification GEMINI_API_KEY en production (avertissement explicite sans bloquer le démarrage)
+  const geminiApiKey = configService.get<string>('GEMINI_API_KEY');
   const nodeEnv = configService.get<string>('NODE_ENV') || process.env.NODE_ENV;
-  if ((nodeEnv === 'production' || process.env.RENDER) && (!embeddingServiceUrl || embeddingServiceUrl.trim() === '')) {
+  if ((nodeEnv === 'production' || process.env.RENDER) && (!geminiApiKey || geminiApiKey.trim() === '')) {
     console.warn(
-      '[WARN] EMBEDDING_SERVICE_URL est absente en production. Les documents ingérés échoueront lors de la vectorisation.',
+      '[WARN] GEMINI_API_KEY est absente en production. Les documents ingérés échoueront lors de la vectorisation.',
     );
   }
 

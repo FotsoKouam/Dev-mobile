@@ -1,103 +1,132 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { EmbeddingClient } from './embedding.client.js';
 
-describe('EmbeddingClient', () => {
+/** Fabrique un vecteur unitaire de dimension 768 */
+function makeVec(len = 768, val = 1): number[] {
+  const v = Array.from({ length: len }, () => val);
+  const norm = Math.sqrt(v.reduce((s, x) => s + x * x, 0));
+  return v.map((x) => x / norm);
+}
+
+/** Réponse Gemini batchEmbedContents simulée */
+function geminiResponse(vectors: number[][]) {
+  return {
+    ok: true,
+    status: 200,
+    json: async () => ({
+      embeddings: vectors.map((values) => ({ values })),
+    }),
+  };
+}
+
+describe('EmbeddingClient (Gemini)', () => {
   let client: EmbeddingClient;
   let originalFetch: any;
 
   beforeEach(() => {
     originalFetch = globalThis.fetch;
-    process.env.EMBEDDING_SERVICE_URL = 'http://127.0.0.1:8001';
-    process.env.EMBEDDING_TIMEOUT_MS = '1000';
+    process.env.GEMINI_API_KEY = 'test-gemini-key';
     client = new EmbeddingClient();
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    delete process.env.GEMINI_API_KEY;
     vi.restoreAllMocks();
   });
 
-  it('appelle le service avec le bon chemin /embed et le préfixe "passage: "', async () => {
-    const mockVector = Array.from({ length: 768 }, () => 0.1);
-    const fetchMock = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        embeddings: [mockVector],
-        dimension: 768,
-      }),
-    });
+  it('appelle batchEmbedContents avec le bon modèle, outputDimensionality=768 et RETRIEVAL_DOCUMENT', async () => {
+    const vec = makeVec();
+    const fetchMock = vi.fn().mockResolvedValue(geminiResponse([vec]));
     globalThis.fetch = fetchMock;
 
     const result = await client.embedPassages(['Texte de démonstration']);
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
-    const [url, options] = fetchMock.mock.calls[0];
-    expect(url).toBe('http://127.0.0.1:8001/embed');
-    expect(options.method).toBe('POST');
-    const parsedBody = JSON.parse(options.body);
-    expect(parsedBody.texts).toEqual(['passage: Texte de démonstration']);
+    const [url, opts] = fetchMock.mock.calls[0];
+
+    // URL correcte (modèle + clé)
+    expect(url).toContain('gemini-embedding-2');
+    expect(url).toContain('batchEmbedContents');
+    expect(url).toContain('test-gemini-key');
+
+    // Corps de la requête
+    const parsed = JSON.parse(opts.body);
+    expect(parsed.requests).toHaveLength(1);
+    expect(parsed.requests[0].taskType).toBe('RETRIEVAL_DOCUMENT');
+    expect(parsed.requests[0].outputDimensionality).toBe(768);
+    expect(parsed.requests[0].content.parts[0].text).toBe('Texte de démonstration');
+
+    // Résultat normalisé, 768 dimensions
     expect(result).toHaveLength(1);
     expect(result[0]).toHaveLength(768);
   });
 
-  it('découpe les requêtes par lots de 16 textes', async () => {
-    const mockVector = Array.from({ length: 768 }, () => 0.05);
-    const fetchMock = vi.fn().mockImplementation(async (url, options) => {
-      const body = JSON.parse(options.body);
-      return {
-        ok: true,
-        json: async () => ({
-          embeddings: body.texts.map(() => mockVector),
-          dimension: 768,
-        }),
-      };
+  it('découpe par lots de 16 et agrège correctement', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (_url: string, opts: any) => {
+      const { requests } = JSON.parse(opts.body);
+      return geminiResponse(requests.map(() => makeVec()));
     });
     globalThis.fetch = fetchMock;
 
-    // 25 textes -> 1er lot = 16, 2e lot = 9 -> 2 appels
     const texts = Array.from({ length: 25 }, (_, i) => `Texte ${i}`);
     const result = await client.embedPassages(texts);
 
+    // 25 textes → 2 appels (16 + 9)
     expect(fetchMock).toHaveBeenCalledTimes(2);
-    const firstCallBody = JSON.parse(fetchMock.mock.calls[0][1].body);
-    const secondCallBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-
-    expect(firstCallBody.texts).toHaveLength(16);
-    expect(secondCallBody.texts).toHaveLength(9);
-    expect(firstCallBody.texts[0]).toBe('passage: Texte 0');
-    expect(secondCallBody.texts[0]).toBe('passage: Texte 16');
     expect(result).toHaveLength(25);
+    result.forEach((v) => expect(v).toHaveLength(768));
   });
 
-  it('échoue si la dimension retournée est différente de 768', async () => {
-    const invalidVector = Array.from({ length: 512 }, () => 0.1); // mauvaise dimension
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        embeddings: [invalidVector],
-        dimension: 512,
-      }),
-    });
+  it("renvoie une erreur si un vecteur n'a pas 768 dimensions", async () => {
+    const badVec = Array.from({ length: 512 }, () => 0.1);
+    globalThis.fetch = vi.fn().mockResolvedValue(geminiResponse([badVec]));
 
     await expect(client.embedPassages(['Texte'])).rejects.toThrow();
   });
 
-  it('échoue en cas de timeout réseau', async () => {
-    globalThis.fetch = vi.fn().mockImplementation(async () => {
-      const error: any = new Error('The operation was aborted');
-      error.name = 'AbortError';
-      throw error;
-    });
-
-    await expect(client.embedPassages(['Texte'])).rejects.toThrow("Timeout du service d'embeddings");
-  });
-
-  it('échoue en cas d erreur HTTP 500 ou indisponibilité réseau', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 503,
-    });
+  it('sur 429, réessaie deux fois puis lève une erreur', async () => {
+    const tooManyReq = { ok: false, status: 429, json: async () => ({}) };
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(tooManyReq)
+      .mockResolvedValueOnce(tooManyReq)
+      .mockResolvedValueOnce(tooManyReq);
+    globalThis.fetch = fetchMock;
 
     await expect(client.embedPassages(['Texte'])).rejects.toThrow();
+    // 1 appel initial + 2 tentatives = 3
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('lève une erreur explicite si GEMINI_API_KEY est absente', async () => {
+    delete process.env.GEMINI_API_KEY;
+    const clientNoKey = new EmbeddingClient();
+
+    await expect(clientNoKey.embedPassages(['Texte'])).rejects.toThrow(
+      "Le service d'embeddings est indisponible.",
+    );
+  });
+
+  it('normalise chaque vecteur en L2 (norme proche de 1)', async () => {
+    // Vecteur non normalisé envoyé par l'API
+    const rawVec = Array.from({ length: 768 }, () => 2.0);
+    globalThis.fetch = vi.fn().mockResolvedValue(geminiResponse([rawVec]));
+
+    const result = await client.embedPassages(['Texte']);
+    const norm = Math.sqrt(result[0].reduce((s, v) => s + v * v, 0));
+    expect(norm).toBeCloseTo(1.0, 5);
+  });
+
+  it('embedQuery utilise la tâche RETRIEVAL_QUERY', async () => {
+    const vec = makeVec();
+    const fetchMock = vi.fn().mockResolvedValue(geminiResponse([vec]));
+    globalThis.fetch = fetchMock;
+
+    const result = await client.embedQuery('Une question');
+
+    const parsed = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(parsed.requests[0].taskType).toBe('RETRIEVAL_QUERY');
+    expect(result).toHaveLength(768);
   });
 });
