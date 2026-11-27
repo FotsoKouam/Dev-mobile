@@ -2,6 +2,7 @@
 
 ## Statut
 
+Partiellement remplacé par 0003 (accès aux espaces).
 Partiellement remplacé par 0002 (embeddings) — 23 novembre 2026.
 
 Proposé (20 novembre 2026, à valider avec M. Pessa).
