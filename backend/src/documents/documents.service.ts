@@ -219,8 +219,8 @@ export class DocumentsService {
     // Vérifier l'existence et l'état de l'espace
     const space = await this.spacesRepository
       .createQueryBuilder('space')
-      .leftJoinAndSelect('space.program', 'program')
-      .leftJoinAndSelect('program.school', 'school')
+      .leftJoinAndSelect('space.school', 'school')
+      .leftJoinAndSelect('space.scopeProgram', 'scopeProgram')
       .where('space.id = :spaceId', { spaceId })
       .getOne();
 
@@ -612,23 +612,21 @@ export class DocumentsService {
     }
 
     if (isStaff) {
-      if (!space.programId) {
-        throw new ForbiddenException('Le personnel ne peut ajouter des documents que dans les espaces de sa filière');
-      }
+      if (space.scopeProgramId) {
+        const activeAssignment = await this.assignmentsRepository
+          .createQueryBuilder('assignment')
+          .leftJoinAndSelect('assignment.role', 'role')
+          .where('assignment.userId = :userId', { userId: user.id })
+          .andWhere('assignment.programId = :programId', { programId: space.scopeProgramId })
+          .andWhere('assignment.status = :status', { status: 'active' })
+          .andWhere('role.code = :roleCode', { roleCode: 'staff' })
+          .getOne();
 
-      const activeAssignment = await this.assignmentsRepository
-        .createQueryBuilder('assignment')
-        .leftJoinAndSelect('assignment.role', 'role')
-        .where('assignment.userId = :userId', { userId: user.id })
-        .andWhere('assignment.programId = :programId', { programId: space.programId })
-        .andWhere('assignment.status = :status', { status: 'active' })
-        .andWhere('role.code = :roleCode', { roleCode: 'staff' })
-        .getOne();
-
-      if (!activeAssignment) {
-        throw new ForbiddenException(
-          'Accès refusé : vous n êtes pas affecté à la filière de cet espace en tant que personnel',
-        );
+        if (!activeAssignment) {
+          throw new ForbiddenException(
+            'Accès refusé : vous n êtes pas affecté à la filière de cet espace en tant que personnel',
+          );
+        }
       }
     }
   }
@@ -641,8 +639,8 @@ export class DocumentsService {
     const qb = this.documentsRepository
       .createQueryBuilder('document')
       .leftJoinAndSelect('document.space', 'space')
-      .leftJoinAndSelect('space.program', 'program')
-      .leftJoinAndSelect('program.school', 'school')
+      .leftJoinAndSelect('space.school', 'school')
+      .leftJoinAndSelect('space.scopeProgram', 'scopeProgram')
       .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
       .leftJoinAndSelect('document.currentVersion', 'currentVersion')
       .orderBy('document.createdAt', 'DESC')
@@ -654,11 +652,11 @@ export class DocumentsService {
     }
 
     if (query.programId) {
-      qb.andWhere('space.programId = :programId', { programId: query.programId });
+      qb.andWhere('space.scopeProgramId = :programId', { programId: query.programId });
     }
 
     if (query.schoolId) {
-      qb.andWhere('program.schoolId = :schoolId', { schoolId: query.schoolId });
+      qb.andWhere('space.schoolId = :schoolId', { schoolId: query.schoolId });
     }
 
     if (query.status) {
@@ -691,8 +689,8 @@ export class DocumentsService {
     const doc = await this.documentsRepository
       .createQueryBuilder('document')
       .leftJoinAndSelect('document.space', 'space')
-      .leftJoinAndSelect('space.program', 'program')
-      .leftJoinAndSelect('program.school', 'school')
+      .leftJoinAndSelect('space.school', 'school')
+      .leftJoinAndSelect('space.scopeProgram', 'scopeProgram')
       .leftJoinAndSelect('document.uploadedBy', 'uploadedBy')
       .leftJoinAndSelect('document.currentVersion', 'currentVersion')
       .where('document.id = :id', { id })
@@ -708,15 +706,14 @@ export class DocumentsService {
   async getStats(schoolId?: string, programId?: string): Promise<DocumentStatsResponseDto> {
     const qb = this.documentsRepository
       .createQueryBuilder('document')
-      .leftJoin('document.space', 'space')
-      .leftJoin('space.program', 'program');
+      .leftJoin('document.space', 'space');
 
     if (programId) {
-      qb.andWhere('space.programId = :programId', { programId });
+      qb.andWhere('space.scopeProgramId = :programId', { programId });
     }
 
     if (schoolId) {
-      qb.andWhere('program.schoolId = :schoolId', { schoolId });
+      qb.andWhere('space.schoolId = :schoolId', { schoolId });
     }
 
     const rawStats = await qb
@@ -760,8 +757,8 @@ export class DocumentsService {
 
   private toResponseDto(doc: Document): DocumentResponseDto {
     const space = doc.space;
-    const program = space?.program;
-    const school = program?.school;
+    const program = space?.scopeProgram;
+    const school = space?.school || program?.school;
     const uploadedBy = doc.uploadedBy;
 
     const uName = uploadedBy

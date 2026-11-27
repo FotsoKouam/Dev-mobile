@@ -1,12 +1,13 @@
-import { Column, Entity, JoinColumn, ManyToOne, Unique } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, OneToMany, Unique } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { BaseEntity } from '../common/base.entity.js';
-import { SpaceStatus, SpaceType } from './space.enums.js';
+import { SpaceScope, SpaceStatus } from './space.enums.js';
+import { School } from '../schools/school.entity.js';
 import { Program } from '../programs/program.entity.js';
-import { User } from '../users/user.entity.js';
+import { SpaceMember } from './space-member.entity.js';
 
 @Entity('spaces')
-@Unique(['programId', 'name'])
+@Unique(['schoolId', 'name'])
 export class Space extends BaseEntity {
   @Column({ type: 'varchar', length: 150 })
   name: string;
@@ -14,26 +15,28 @@ export class Space extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   description?: string | null;
 
+  @Column({ type: 'uuid' })
+  schoolId: string;
+
+  @ManyToOne(() => School, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'school_id' })
+  school: Relation<School>;
+
   @Column({
     type: 'varchar',
     length: 20,
-    default: SpaceType.INSTITUTIONAL,
   })
-  type: SpaceType;
+  scope: SpaceScope;
 
   @Column({ type: 'uuid', nullable: true })
-  programId?: string | null;
+  scopeProgramId?: string | null;
 
   @ManyToOne(() => Program, { onDelete: 'RESTRICT', nullable: true })
-  @JoinColumn({ name: 'program_id' })
-  program: Relation<Program | null>;
+  @JoinColumn({ name: 'scope_program_id' })
+  scopeProgram: Relation<Program | null>;
 
-  @Column({ type: 'uuid', nullable: true })
-  ownerId?: string | null;
-
-  @ManyToOne(() => User, { onDelete: 'RESTRICT', nullable: true })
-  @JoinColumn({ name: 'owner_id' })
-  owner: Relation<User | null>;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  scopeRoleCode?: string | null;
 
   @Column({
     type: 'varchar',
@@ -41,5 +44,7 @@ export class Space extends BaseEntity {
     default: SpaceStatus.ACTIVE,
   })
   status: SpaceStatus;
-}
 
+  @OneToMany(() => SpaceMember, (member) => member.space)
+  members: Relation<SpaceMember[]>;
+}

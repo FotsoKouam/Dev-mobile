@@ -346,7 +346,7 @@ describe('DocumentsService', () => {
         status: DocumentStatus.AVAILABLE,
         spaceId: 'space-1',
       };
-      const spaceMock = { id: 'space-1', status: SpaceStatus.ACTIVE, programId: 'prog-1' };
+      const spaceMock = { id: 'space-1', status: SpaceStatus.ACTIVE, scopeProgramId: 'prog-1' };
 
       queryRunnerMock.manager.findOne.mockImplementation((entity: any) => {
         if (entity === Document) return Promise.resolve(docMock);
