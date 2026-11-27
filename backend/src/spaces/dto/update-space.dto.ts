@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString, Length } from 'class-validator';
-import { SpaceStatus } from '../space.enums.js';
+import { IsEnum, IsOptional, IsString, IsUUID, Length } from 'class-validator';
+import { SpaceScope, SpaceStatus } from '../space.enums.js';
 
 export class UpdateSpaceDto {
   @ApiPropertyOptional({
@@ -30,5 +30,29 @@ export class UpdateSpaceDto {
   @IsOptional()
   @IsEnum(SpaceStatus)
   status?: SpaceStatus;
-}
 
+  @ApiPropertyOptional({
+    enum: SpaceScope,
+    example: SpaceScope.SCHOOL,
+    description: 'Nouvelle portée de l\'espace (modifiable uniquement si aucun document n\'est rattaché)',
+  })
+  @IsOptional()
+  @IsEnum(SpaceScope)
+  scope?: SpaceScope;
+
+  @ApiPropertyOptional({
+    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
+    description: 'Identifiant de la filière si scope = program',
+  })
+  @IsOptional()
+  @IsUUID('all', { message: 'programId doit être un UUID valide' })
+  programId?: string;
+
+  @ApiPropertyOptional({
+    example: 'staff',
+    description: 'Code du rôle si scope = role',
+  })
+  @IsOptional()
+  @IsString()
+  roleCode?: string;
+}

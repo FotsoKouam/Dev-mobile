@@ -105,7 +105,7 @@ const rolesData: SeedRole[] = [
       'manage_users',
       'manage_roles',
       'manage_assignments',
-      'create_institutional_space',
+      'manage_spaces',
       'add_document',
       'replace_or_delete_document',
       'view_audit_log',
@@ -120,7 +120,7 @@ const rolesData: SeedRole[] = [
       'manage_programs',
       'manage_users',
       'manage_assignments',
-      'create_institutional_space',
+      'manage_spaces',
       'add_document',
       'replace_or_delete_document',
       'view_audit_log',
@@ -404,77 +404,137 @@ async function seed() {
 
     console.log(`Utilisateurs et affectations : ${processedUsers} utilisateurs, ${processedAssignments} affectations traitées.`);
 
-    // 6. Espaces institutionnels
+    // 6. Espaces selon modèle ADR 0003
     interface SeedSpace {
       schoolName: string;
-      programName: string;
       name: string;
+      scope: 'school' | 'program' | 'role' | 'individual';
+      programName?: string;
+      roleCode?: string;
       description?: string;
     }
 
     const spacesData: SeedSpace[] = [
       {
         schoolName: 'Institut Universitaire Saint Jean',
-        programName: 'ISI',
-        name: 'Graphes et algorithmes',
+        name: 'Institutionnel',
+        scope: 'school',
       },
       {
         schoolName: 'Institut Universitaire Saint Jean',
-        programName: 'ISI',
-        name: 'Architecture web avancée',
+        name: 'Règlement de l\'école',
+        scope: 'school',
       },
       {
         schoolName: 'Institut Universitaire Saint Jean',
-        programName: 'ISI',
-        name: 'Développement mobile',
+        name: 'Calendrier académique',
+        scope: 'school',
       },
       {
         schoolName: 'Institut Universitaire Saint Jean',
+        name: 'Étudiants ISI',
+        scope: 'program',
         programName: 'ISI',
-        name: 'Bases de données',
       },
       {
         schoolName: 'Institut Universitaire Saint Jean',
+        name: 'Étudiants SRT',
+        scope: 'program',
         programName: 'SRT',
-        name: 'Réseaux',
       },
       {
         schoolName: 'Institut Universitaire Saint Jean',
-        programName: 'SRT',
-        name: 'Systèmes Linux',
+        name: 'Étudiants Gestion',
+        scope: 'program',
+        programName: 'Gestion',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        name: 'Enseignants',
+        scope: 'role',
+        roleCode: 'staff',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        name: 'Personnel administratif',
+        scope: 'role',
+        roleCode: 'staff',
+      },
+      {
+        schoolName: 'Institut Universitaire Saint Jean',
+        name: 'Parents / invités',
+        scope: 'individual',
       },
     ];
 
     let insertedSpaces = 0;
-    for (const s of spacesData) {
-      const progRes = await client.query<{ id: string }>(
-        `SELECT p.id FROM programs p
-         JOIN schools sc ON p.school_id = sc.id
-         WHERE sc.name = $1 AND p.name = $2`,
-        [s.schoolName, s.programName],
-      );
+    const spaceIdByName: Record<string, string> = {};
 
-      if (progRes.rows.length === 0) {
-        console.warn(`Filière ${s.programName} introuvable pour l'école ${s.schoolName}, espace ${s.name} ignoré.`);
+    for (const s of spacesData) {
+      const schRes = await client.query<{ id: string }>(
+        `SELECT id FROM schools WHERE name = $1`,
+        [s.schoolName],
+      );
+      if (schRes.rows.length === 0) {
+        console.warn(`École ${s.schoolName} introuvable, espace ${s.name} ignoré.`);
         continue;
       }
+      const schoolId = schRes.rows[0].id;
 
-      const programId = progRes.rows[0].id;
+      let scopeProgramId: string | null = null;
+      let scopeRoleCode: string | null = null;
 
-      const res = await client.query(
-        `INSERT INTO spaces (name, description, type, program_id, status)
-         VALUES ($1, $2, 'institutional', $3, 'active')
-         ON CONFLICT (program_id, name) DO NOTHING
+      if (s.scope === 'program') {
+        const progRes = await client.query<{ id: string }>(
+          `SELECT id FROM programs WHERE school_id = $1 AND name = $2`,
+          [schoolId, s.programName],
+        );
+        if (progRes.rows.length === 0) {
+          console.warn(`Filière ${s.programName} introuvable pour ${s.schoolName}, espace ${s.name} ignoré.`);
+          continue;
+        }
+        scopeProgramId = progRes.rows[0].id;
+      } else if (s.scope === 'role') {
+        scopeRoleCode = s.roleCode ?? null;
+      }
+
+      const res = await client.query<{ id: string }>(
+        `INSERT INTO spaces (school_id, name, description, scope, scope_program_id, scope_role_code, status)
+         VALUES ($1, $2, $3, $4, $5, $6, 'active')
+         ON CONFLICT (school_id, name) DO UPDATE
+           SET scope = EXCLUDED.scope,
+               scope_program_id = EXCLUDED.scope_program_id,
+               scope_role_code = EXCLUDED.scope_role_code
          RETURNING id;`,
-        [s.name, s.description ?? null, programId],
+        [schoolId, s.name, s.description ?? null, s.scope, scopeProgramId, scopeRoleCode],
       );
 
-      if (res.rowCount && res.rowCount > 0) {
+      if (res.rows.length > 0) {
+        spaceIdByName[s.name] = res.rows[0].id;
         insertedSpaces++;
       }
     }
 
-    console.log(`Espaces institutionnels : ${spacesData.length} configurés, ${insertedSpaces} nouvellement insérés.`);
+    console.log(`Espaces : ${spacesData.length} configurés, ${insertedSpaces} traités.`);
+
+    // 7. Membres explicites (space_members)
+    // Ajouter l'invité seed (Sophie Moukengue) à l'espace Parents / invités
+    const guestUserRes = await client.query<{ id: string }>(
+      `SELECT id FROM users WHERE email = $1`,
+      ['sophie.moukengue@example.com'],
+    );
+    const parentsSpaceId = spaceIdByName['Parents / invités'];
+
+    if (guestUserRes.rows.length > 0 && parentsSpaceId) {
+      const guestUserId = guestUserRes.rows[0].id;
+      await client.query(
+        `INSERT INTO space_members (space_id, user_id)
+         VALUES ($1, $2)
+         ON CONFLICT (space_id, user_id) DO NOTHING;`,
+        [parentsSpaceId, guestUserId],
+      );
+      console.log(`Membre de test : Sophie Moukengue ajoutée à l'espace 'Parents / invités'.`);
+    }
 
     console.log('Seed terminé avec succès !');
     await client.end();

@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
-import { SpaceStatus } from '../space.enums.js';
+import { SpaceScope, SpaceStatus } from '../space.enums.js';
 
 export class QuerySpaceDto {
   @ApiPropertyOptional({
@@ -37,26 +37,27 @@ export class QuerySpaceDto {
 
   @ApiPropertyOptional({
     example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Filtrer par école (via sa filière)',
+    description: 'Filtrer par école',
   })
   @IsOptional()
   @IsUUID()
   schoolId?: string;
 
   @ApiPropertyOptional({
-    example: '3fa85f64-5717-4562-b3fc-2c963f66afa6',
-    description: 'Filtrer par filière',
+    enum: SpaceScope,
+    example: SpaceScope.PROGRAM,
+    description: 'Filtrer par portée',
   })
   @IsOptional()
-  @IsUUID()
-  programId?: string;
+  @IsEnum(SpaceScope)
+  scope?: SpaceScope;
 
   @ApiPropertyOptional({
     enum: SpaceStatus,
+    example: SpaceStatus.ACTIVE,
     description: 'Filtrer par statut (active ou inactive)',
   })
   @IsOptional()
   @IsEnum(SpaceStatus)
   status?: SpaceStatus;
 }
-
