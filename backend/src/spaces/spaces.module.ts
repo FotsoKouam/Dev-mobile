@@ -9,6 +9,7 @@ import { Document } from '../documents/document.entity.js';
 import { Assignment } from '../assignments/assignment.entity.js';
 import { SpacesService } from './spaces.service.js';
 import { SpacesController } from './spaces.controller.js';
+import { SpaceAccessService } from './access/space-access.service.js';
 
 @Module({
   imports: [
@@ -23,7 +24,7 @@ import { SpacesController } from './spaces.controller.js';
     ]),
   ],
   controllers: [SpacesController],
-  providers: [SpacesService],
-  exports: [SpacesService],
+  providers: [SpacesService, SpaceAccessService],
+  exports: [SpacesService, SpaceAccessService],
 })
 export class SpacesModule {}
