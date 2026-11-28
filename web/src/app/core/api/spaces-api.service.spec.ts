@@ -39,7 +39,7 @@ describe('SpacesApiService', () => {
         limit: 15,
         search: 'Graphes',
         schoolId: 'sch-1',
-        programId: 'prog-1',
+        scope: 'program',
         status: 'active',
       })
       .subscribe();
@@ -50,7 +50,7 @@ describe('SpacesApiService', () => {
     expect(req.request.params.get('limit')).toBe('15');
     expect(req.request.params.get('search')).toBe('Graphes');
     expect(req.request.params.get('schoolId')).toBe('sch-1');
-    expect(req.request.params.get('programId')).toBe('prog-1');
+    expect(req.request.params.get('scope')).toBe('program');
     expect(req.request.params.get('status')).toBe('active');
     req.flush({ data: [], meta: { page: 2, limit: 15, total: 0 } });
   });
@@ -63,14 +63,16 @@ describe('SpacesApiService', () => {
     req.flush({ id: 'sp-123', name: 'Graphes et algorithmes' });
   });
 
-  it('createSpace devrait appeler POST /api/programs/:programId/spaces sans type ni programId dans le body et propager 409', () => {
+  it('createSpace devrait appeler POST /api/schools/:schoolId/spaces avec scope et cible, jamais schoolId ni type dans le corps', () => {
     const dto: CreateSpaceDto = {
       name: 'Graphes et algorithmes',
       description: 'Algo avancée',
+      scope: 'program',
+      programId: 'prog-1',
     };
 
     let caughtError: any = null;
-    service.createSpace('prog-1', dto).subscribe({
+    service.createSpace('sch-1', dto).subscribe({
       next: () => {
         throw new Error('devrait échouer avec 409');
       },
@@ -79,18 +81,20 @@ describe('SpacesApiService', () => {
       },
     });
 
-    const req = httpMock.expectOne(`${mockApiUrl}/api/programs/prog-1/spaces`);
+    const req = httpMock.expectOne(`${mockApiUrl}/api/schools/sch-1/spaces`);
     expect(req.request.method).toBe('POST');
-    // Le corps ne doit jamais contenir ni type ni programId
+    // Le corps contient scope et programId, mais ni schoolId ni type
     expect(req.request.body).toEqual({
       name: 'Graphes et algorithmes',
       description: 'Algo avancée',
+      scope: 'program',
+      programId: 'prog-1',
     });
+    expect((req.request.body as any).schoolId).toBeUndefined();
     expect((req.request.body as any).type).toBeUndefined();
-    expect((req.request.body as any).programId).toBeUndefined();
 
     req.flush(
-      { message: 'A space with name already exists in this program' },
+      { message: 'A space with name already exists in this school' },
       { status: 409, statusText: 'Conflict' },
     );
     expect(caughtError).toBeTruthy();
@@ -111,32 +115,21 @@ describe('SpacesApiService', () => {
     req.flush({ id: 'sp-123', name: 'Nouveau nom', status: 'inactive' });
   });
 
-  it('getSchools devrait appeler GET /api/schools?limit=100', () => {
-    service.getSchools(100).subscribe();
+  it('getMembers, addMember et removeMember devraient appeler les bonnes routes', () => {
+    service.getMembers('sp-1', 1, 10).subscribe();
+    const reqMembers = httpMock.expectOne(`${mockApiUrl}/api/spaces/sp-1/members?page=1&limit=10`);
+    expect(reqMembers.request.method).toBe('GET');
+    reqMembers.flush({ data: [], meta: { page: 1, limit: 10, total: 0 } });
 
-    const req = httpMock.expectOne(`${mockApiUrl}/api/schools?limit=100`);
-    expect(req.request.method).toBe('GET');
-    req.flush({ data: [], meta: { page: 1, limit: 100, total: 0 } });
-  });
+    service.addMember('sp-1', 'u-1').subscribe();
+    const reqAdd = httpMock.expectOne(`${mockApiUrl}/api/spaces/sp-1/members`);
+    expect(reqAdd.request.method).toBe('POST');
+    expect(reqAdd.request.body).toEqual({ userId: 'u-1' });
+    reqAdd.flush({ id: 'sm-1', spaceId: 'sp-1', userId: 'u-1' });
 
-  it('getSchoolPrograms devrait appeler GET /api/schools/:schoolId/programs', () => {
-    service.getSchoolPrograms('sch-1').subscribe((res) => {
-      expect(res.data.length).toBe(3);
-      expect(res.data[0].name).toBe('Gestion');
-      expect(res.data[1].name).toBe('ISI');
-      expect(res.data[2].name).toBe('SRT');
-    });
-
-    const req = httpMock.expectOne(`${mockApiUrl}/api/schools/sch-1/programs`);
-    expect(req.request.method).toBe('GET');
-    req.flush({
-      data: [
-        { id: 'prog-0', name: 'Gestion' },
-        { id: 'prog-1', name: 'ISI' },
-        { id: 'prog-2', name: 'SRT' },
-      ],
-      meta: { page: 1, limit: 50, total: 3 },
-    });
+    service.removeMember('sp-1', 'u-1').subscribe();
+    const reqRemove = httpMock.expectOne(`${mockApiUrl}/api/spaces/sp-1/members/u-1`);
+    expect(reqRemove.request.method).toBe('DELETE');
+    reqRemove.flush(null);
   });
 });
-

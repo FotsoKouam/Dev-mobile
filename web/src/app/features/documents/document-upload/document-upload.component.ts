@@ -58,7 +58,7 @@ const MAX_FILE_SIZE_BYTES = 20 * 1024 * 1024; // 20 Mo
             </option>
             @for (sp of availableSpaces(); track sp.id) {
               <option [value]="sp.id">
-                {{ sp.name }}{{ sp.program ? ' (' + sp.program.name + ')' : '' }}
+                {{ sp.name }}{{ sp.scopeProgram ? ' (' + sp.scopeProgram.name + ')' : '' }}
               </option>
             }
           </select>

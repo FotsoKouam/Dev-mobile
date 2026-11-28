@@ -50,12 +50,12 @@
           }
         </select>
 
-        <!-- Filtre Espace (réel, activé si filière sélectionnée) -->
+        <!-- Filtre Espace (activé dès que l'école est sélectionnée) -->
         <select class="filter-select" [ngModel]="selectedSpaceId()" (ngModelChange)="onSpaceFilterChange($event)"
-          [disabled]="!selectedProgramId() || loadingSpaces()">
+          [disabled]="!selectedSchoolId() || loadingSpaces()">
           <option value="">{{ i18n.documentsPage.filters.allSpaces }}</option>
           @for (space of spaces(); track space.id) {
-          <option [value]="space.id">{{ space.name }}</option>
+          <option [value]="space.id">{{ getSpaceOptionLabel(space) }}</option>
           }
         </select>
 
@@ -87,7 +87,7 @@
         </button>
         }
 
-        @if (canCreateInstitutionalSpace) {
+        @if (canManageSpaces) {
         <button type="button" class="btn btn-secondary" (click)="openCreateSpaceModal()">
           {{ i18n.documentsPage.actions.createSpace }}
         </button>

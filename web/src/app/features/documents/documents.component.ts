@@ -123,8 +123,8 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
     return this.sessionService.hasPermission('add_document');
   }
 
-  get canCreateInstitutionalSpace(): boolean {
-    return this.sessionService.hasPermission('create_institutional_space');
+  get canManageSpaces(): boolean {
+    return this.sessionService.hasPermission('manage_spaces');
   }
 
   ngOnInit(): void {
@@ -143,11 +143,11 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
       if (params['schoolId'] && params['schoolId'] !== this.selectedSchoolId()) {
         this.selectedSchoolId.set(params['schoolId']);
         this.loadPrograms(params['schoolId']);
+        this.loadSpaces(params['schoolId']);
         shouldReload = true;
       }
       if (params['programId'] && params['programId'] !== this.selectedProgramId()) {
         this.selectedProgramId.set(params['programId']);
-        this.loadSpaces(params['programId']);
         shouldReload = true;
       }
       if (params['spaceId'] && params['spaceId'] !== this.selectedSpaceId()) {
@@ -315,7 +315,6 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
   loadPrograms(schoolId: string): void {
     if (!schoolId) {
       this.programs.set([]);
-      this.spaces.set([]);
       return;
     }
     this.loadingPrograms.set(true);
@@ -331,16 +330,15 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
     });
   }
 
-  loadSpaces(programId: string): void {
-    if (!programId) {
+  loadSpaces(schoolId: string): void {
+    if (!schoolId) {
       this.spaces.set([]);
       return;
     }
     this.loadingSpaces.set(true);
     this.spacesApi
       .getSpaces({
-        programId,
-        schoolId: this.selectedSchoolId() || undefined,
+        schoolId,
         limit: 100,
       })
       .subscribe({
@@ -355,6 +353,17 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
       });
   }
 
+  getSpaceOptionLabel(space: Space): string {
+    const scopeLabel = space.scope === 'school'
+      ? 'école'
+      : space.scope === 'program'
+      ? 'filière'
+      : space.scope === 'role'
+      ? 'rôle'
+      : 'individuel';
+    return `${space.name} (${scopeLabel})`;
+  }
+
   onSearchInput(value: string): void {
     this.searchSubject.next(value);
   }
@@ -363,9 +372,9 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
     this.selectedSchoolId.set(schoolId);
     this.selectedProgramId.set('');
     this.selectedSpaceId.set('');
-    this.spaces.set([]);
     this.currentPage.set(1);
     this.loadPrograms(schoolId);
+    this.loadSpaces(schoolId);
     this.updateQueryParams();
     this.loadDocuments();
     this.loadStats();
@@ -373,9 +382,14 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
 
   onProgramFilterChange(programId: string): void {
     this.selectedProgramId.set(programId);
-    this.selectedSpaceId.set('');
+    // Si la filière change, le filtre Espace ne se réinitialise pas, sauf si l'espace sélectionné n'appartient plus à la nouvelle sélection
+    if (this.selectedSpaceId()) {
+      const currentSpace = this.spaces().find((s) => s.id === this.selectedSpaceId());
+      if (currentSpace && currentSpace.scope === 'program' && currentSpace.scopeProgramId && currentSpace.scopeProgramId !== programId) {
+        this.selectedSpaceId.set('');
+      }
+    }
     this.currentPage.set(1);
-    this.loadSpaces(programId);
     this.updateQueryParams();
     this.loadDocuments();
     this.loadStats();
@@ -429,8 +443,8 @@ export class DocumentsComponent implements OnInit, AfterViewInit {
   }
 
   onSpaceCreated(space: Space): void {
-    if (this.selectedProgramId() === space.program?.id) {
-      this.loadSpaces(this.selectedProgramId());
+    if (this.selectedSchoolId() === space.school?.id) {
+      this.loadSpaces(this.selectedSchoolId());
     }
   }
 

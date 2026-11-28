@@ -294,7 +294,7 @@ export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
           <div class="tab-pane spaces-pane">
             <div class="spaces-pane-header">
               <span class="spaces-pane-title">Espaces institutionnels de l’école</span>
-              @if (canCreateInstitutionalSpace) {
+              @if (canManageSpaces) {
                 <button
                   type="button"
                   class="btn btn-sm btn-primary"
@@ -311,8 +311,8 @@ export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
               </div>
             } @else if (schoolSpaces().length === 0) {
               <app-empty-state
-                title="Aucun espace institutionnel pour cette école."
-                description="Les espaces institutionnels regroupent les documents de chaque filière."
+                title="Aucun espace pour cette école."
+                description="Les espaces regroupent les documents selon leur portée."
               ></app-empty-state>
             } @else {
               <div class="school-spaces-list">
@@ -321,13 +321,15 @@ export type DetailTab = 'info' | 'programs' | 'users' | 'spaces';
                     <div class="space-main-info">
                       <span class="space-title">{{ sp.name }}</span>
                       <div class="space-meta-line">
-                        <span class="space-prog-badge">{{ sp.program?.name }}</span>
-                        <span class="space-docs-count">— documents</span>
+                        <span class="space-prog-badge">{{ getSpaceScopeLabel(sp) }}</span>
+                        @if (getSpaceTargetLabel(sp)) {
+                          <span class="space-target-badge">{{ getSpaceTargetLabel(sp) }}</span>
+                        }
                       </div>
                     </div>
                     <div class="space-row-right">
                       <app-status-badge [status]="sp.status"></app-status-badge>
-                      @if (canCreateInstitutionalSpace) {
+                      @if (canManageSpaces) {
                         <button
                           type="button"
                           class="action-icon-btn"
@@ -824,8 +826,35 @@ export class SchoolDetailComponent implements OnChanges {
   private currentProgramSchoolId?: string;
   private currentSpaceSchoolId?: string;
 
-  get canCreateInstitutionalSpace(): boolean {
-    return this.sessionService.hasPermission('create_institutional_space');
+  get canManageSpaces(): boolean {
+    return this.sessionService.hasPermission('manage_spaces');
+  }
+
+  getSpaceScopeLabel(space: Space): string {
+    switch (space.scope) {
+      case 'school':
+        return this.i18n.spaceForm.scopes.school;
+      case 'program':
+        return this.i18n.spaceForm.scopes.program;
+      case 'role':
+        return this.i18n.spaceForm.scopes.role;
+      case 'individual':
+        return this.i18n.spaceForm.scopes.individual;
+      default:
+        return space.scope || '';
+    }
+  }
+
+  getSpaceTargetLabel(space: Space): string | null {
+    if (space.scope === 'program') {
+      return space.scopeProgram?.name || null;
+    }
+    if (space.scope === 'role') {
+      if (space.scopeRoleCode === 'staff') return this.i18n.spaceForm.roles.staff;
+      if (space.scopeRoleCode === 'admin_staff') return this.i18n.spaceForm.roles.admin_staff;
+      return space.scopeRoleCode || null;
+    }
+    return null;
   }
 
   ngOnChanges(changes: SimpleChanges): void {
