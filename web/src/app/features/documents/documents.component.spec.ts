@@ -104,7 +104,7 @@ describe('DocumentsComponent', () => {
 
     sessionServiceSpy = {
       hasPermission: vi.fn((perm: string) => {
-        if (perm === 'create_institutional_space') return true;
+        if (perm === 'manage_spaces') return true;
         if (perm === 'add_document') return true;
         if (perm === 'manage_programs') return true;
         return false;
@@ -208,12 +208,27 @@ describe('DocumentsComponent', () => {
     component.onSchoolFilterChange('sch-1');
     expect(component.selectedSchoolId()).toBe('sch-1');
     expect(spacesApiSpy.getSchoolPrograms).toHaveBeenCalledWith('sch-1');
+    expect(spacesApiSpy.getSpaces).toHaveBeenCalledWith({ schoolId: 'sch-1', limit: 100 });
     expect(documentsApiSpy.getDocuments).toHaveBeenCalledWith(
       expect.objectContaining({
         schoolId: 'sch-1',
       }),
     );
     expect(documentsApiSpy.getStats).toHaveBeenCalledWith('sch-1', undefined);
+  });
+
+  it('le filtre Espace est actif dès l école choisie et liste tous les espaces de l école', async () => {
+    component.onSchoolFilterChange('sch-1');
+    expect(spacesApiSpy.getSpaces).toHaveBeenCalledWith({ schoolId: 'sch-1', limit: 100 });
+    expect(component.spaces().length).toBe(2);
+    fixture.detectChanges();
+    await fixture.whenStable();
+
+    const compiled = fixture.nativeElement as HTMLElement;
+    const selects = compiled.querySelectorAll('select.filter-select');
+    // selects: [0] Ecole, [1] Filière, [2] Espace
+    const spaceSelect = selects[2] as HTMLSelectElement;
+    expect(spaceSelect.disabled).toBe(false);
   });
 
   it('un clic sur une ligne ouvre le panneau de détail avec getDocument', () => {

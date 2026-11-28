@@ -99,11 +99,13 @@ describe('SchoolDetailComponent', () => {
           id: 'sp-1',
           name: 'Algorithmique & Structures de données',
           description: 'Support cours',
-          type: 'institutional' as const,
+          scope: 'program' as const,
+          scopeProgramId: 'p1',
+          scopeRoleCode: null,
+          scopeProgram: { id: 'p1', name: 'ISI' },
           status: 'active' as const,
           createdAt: '2026-01-01',
           updatedAt: '2026-01-01',
-          program: { id: 'p1', name: 'ISI' },
         },
       ],
       meta: { page: 1, limit: 50, total: 1 },
@@ -116,7 +118,6 @@ describe('SchoolDetailComponent', () => {
     const el = fixture.nativeElement as HTMLElement;
     expect(el.textContent).toContain('Algorithmique & Structures de données');
     expect(el.textContent).toContain('ISI');
-    expect(el.textContent).toContain('— documents');
   });
 
   it('devrait afficher l état vide si aucun espace n est trouvé pour l école', () => {
@@ -126,7 +127,7 @@ describe('SchoolDetailComponent', () => {
     fixture.detectChanges();
 
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.textContent).toContain('Aucun espace institutionnel pour cette école.');
+    expect(el.textContent).toContain('Aucun espace pour cette école.');
   });
 
   it('devrait demander confirmation avant de désactiver l école', () => {

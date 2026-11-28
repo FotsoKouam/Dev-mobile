@@ -12,7 +12,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { SpacesApiService } from '../../../core/api/spaces-api.service';
-import { Space, SpaceStatus } from '../../../core/api/models/space.model';
+import { Space, SpaceScope, SpaceStatus } from '../../../core/api/models/space.model';
 import { School, Program } from '../../../core/api/models/school.model';
 import { ModalComponent } from '../modal/modal.component';
 import { FormFieldComponent } from '../form-field/form-field.component';
@@ -37,7 +37,7 @@ import { I18N_FR } from '../../i18n/fr';
           </div>
         }
 
-        <!-- École (désactivée en mode édition ou si fixée) -->
+        <!-- 1. École * (désactivée en mode édition ou si fixée) -->
         <app-form-field
           [label]="i18n.spaceForm.schoolLabel"
           [error]="schoolError()"
@@ -56,26 +56,7 @@ import { I18N_FR } from '../../i18n/fr';
           </select>
         </app-form-field>
 
-        <!-- Filière (désactivée en mode édition ou si pas d'école) -->
-        <app-form-field
-          [label]="i18n.spaceForm.programLabel"
-          [error]="programError()"
-        >
-          <select
-            class="form-select"
-            [ngModel]="selectedProgramId()"
-            (ngModelChange)="onProgramChange($event)"
-            name="programId"
-            [disabled]="isEditing || !selectedSchoolId() || loadingPrograms()"
-          >
-            <option value="" disabled>{{ i18n.spaceForm.programPlaceholder }}</option>
-            @for (program of programs(); track program.id) {
-              <option [value]="program.id">{{ program.name }}</option>
-            }
-          </select>
-        </app-form-field>
-
-        <!-- Nom de l'espace -->
+        <!-- 2. Nom de l'espace * -->
         <app-form-field
           [label]="i18n.spaceForm.nameLabel"
           [error]="nameError()"
@@ -92,7 +73,7 @@ import { I18N_FR } from '../../i18n/fr';
           />
         </app-form-field>
 
-        <!-- Description -->
+        <!-- 3. Description (facultative) -->
         <app-form-field [label]="i18n.spaceForm.descLabel">
           <textarea
             class="form-textarea"
@@ -103,6 +84,113 @@ import { I18N_FR } from '../../i18n/fr';
             name="description"
           ></textarea>
         </app-form-field>
+
+        <!-- 4. Portée * (en création uniquement) -->
+        @if (!isEditing) {
+          <app-form-field
+            [label]="i18n.spaceForm.scopeLabel"
+            [error]="scopeError()"
+          >
+            <div class="scope-options">
+              <label class="scope-radio-card" [class.selected]="selectedScope() === 'school'">
+                <input
+                  type="radio"
+                  name="scope"
+                  value="school"
+                  [ngModel]="selectedScope()"
+                  (ngModelChange)="onScopeChange($event)"
+                />
+                <div class="scope-card-content">
+                  <span class="scope-title">{{ i18n.spaceForm.scopes.school }}</span>
+                  <span class="scope-help">{{ i18n.spaceForm.scopes.schoolHelp }}</span>
+                </div>
+              </label>
+
+              <label class="scope-radio-card" [class.selected]="selectedScope() === 'program'">
+                <input
+                  type="radio"
+                  name="scope"
+                  value="program"
+                  [ngModel]="selectedScope()"
+                  (ngModelChange)="onScopeChange($event)"
+                />
+                <div class="scope-card-content">
+                  <span class="scope-title">{{ i18n.spaceForm.scopes.program }}</span>
+                  <span class="scope-help">{{ i18n.spaceForm.scopes.programHelp }}</span>
+                </div>
+              </label>
+
+              <label class="scope-radio-card" [class.selected]="selectedScope() === 'role'">
+                <input
+                  type="radio"
+                  name="scope"
+                  value="role"
+                  [ngModel]="selectedScope()"
+                  (ngModelChange)="onScopeChange($event)"
+                />
+                <div class="scope-card-content">
+                  <span class="scope-title">{{ i18n.spaceForm.scopes.role }}</span>
+                  <span class="scope-help">{{ i18n.spaceForm.scopes.roleHelp }}</span>
+                </div>
+              </label>
+
+              <label class="scope-radio-card" [class.selected]="selectedScope() === 'individual'">
+                <input
+                  type="radio"
+                  name="scope"
+                  value="individual"
+                  [ngModel]="selectedScope()"
+                  (ngModelChange)="onScopeChange($event)"
+                />
+                <div class="scope-card-content">
+                  <span class="scope-title">{{ i18n.spaceForm.scopes.individual }}</span>
+                  <span class="scope-help">{{ i18n.spaceForm.scopes.individualHelp }}</span>
+                </div>
+              </label>
+            </div>
+          </app-form-field>
+
+          <!-- Cible selon portée -->
+          <!-- Si portée = Filière -->
+          @if (selectedScope() === 'program') {
+            <app-form-field
+              [label]="i18n.spaceForm.programLabel"
+              [error]="programError()"
+            >
+              <select
+                class="form-select"
+                [ngModel]="selectedProgramId()"
+                (ngModelChange)="onProgramChange($event)"
+                name="programId"
+                [disabled]="!selectedSchoolId() || loadingPrograms()"
+              >
+                <option value="" disabled>{{ i18n.spaceForm.programPlaceholder }}</option>
+                @for (program of programs(); track program.id) {
+                  <option [value]="program.id">{{ program.name }}</option>
+                }
+              </select>
+            </app-form-field>
+          }
+
+          <!-- Si portée = Rôle -->
+          @if (selectedScope() === 'role') {
+            <app-form-field
+              [label]="i18n.spaceForm.roleLabel"
+              [error]="roleError()"
+            >
+              <select
+                class="form-select"
+                [ngModel]="selectedRoleCode()"
+                (ngModelChange)="onRoleChange($event)"
+                name="roleCode"
+              >
+                <option value="" disabled>{{ i18n.spaceForm.rolePlaceholder }}</option>
+                <option value="staff">{{ i18n.spaceForm.roles.staff }}</option>
+                <option value="admin_staff">{{ i18n.spaceForm.roles.admin_staff }}</option>
+              </select>
+            </app-form-field>
+          }
+        }
 
         <!-- Statut (en mode édition uniquement) -->
         @if (isEditing) {
@@ -177,6 +265,49 @@ import { I18N_FR } from '../../i18n/fr';
     .form-textarea {
       resize: vertical;
     }
+    .scope-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .scope-radio-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border: 1px solid #d8dee8;
+      border-radius: 6px;
+      cursor: pointer;
+      background-color: #ffffff;
+      transition: border-color 0.15s, background-color 0.15s;
+    }
+    .scope-radio-card:hover {
+      border-color: #cbd5e1;
+      background-color: #f8fafc;
+    }
+    .scope-radio-card.selected {
+      border-color: #2f6fed;
+      background-color: #eff6ff;
+    }
+    .scope-radio-card input[type="radio"] {
+      margin-top: 2px;
+      cursor: pointer;
+    }
+    .scope-card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .scope-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: #1b2a4a;
+    }
+    .scope-help {
+      font-size: 11.5px;
+      color: #64748b;
+      line-height: 1.3;
+    }
     .space-form-actions {
       display: flex;
       justify-content: flex-end;
@@ -230,9 +361,11 @@ export class SpaceFormComponent implements OnInit, OnChanges {
   readonly programs = signal<Program[]>([]);
 
   readonly selectedSchoolId = signal<string>('');
-  readonly selectedProgramId = signal<string>('');
   readonly name = signal<string>('');
   readonly description = signal<string>('');
+  readonly selectedScope = signal<SpaceScope>('school');
+  readonly selectedProgramId = signal<string>('');
+  readonly selectedRoleCode = signal<string>('');
   readonly status = signal<SpaceStatus>('active');
 
   readonly loadingSchools = signal<boolean>(false);
@@ -240,7 +373,9 @@ export class SpaceFormComponent implements OnInit, OnChanges {
   readonly loadingSubmit = signal<boolean>(false);
 
   readonly schoolError = signal<string>('');
+  readonly scopeError = signal<string>('');
   readonly programError = signal<string>('');
+  readonly roleError = signal<string>('');
   readonly nameError = signal<string>('');
   readonly serverError = signal<string>('');
 
@@ -265,14 +400,18 @@ export class SpaceFormComponent implements OnInit, OnChanges {
   resetForm(): void {
     this.serverError.set('');
     this.schoolError.set('');
+    this.scopeError.set('');
     this.programError.set('');
+    this.roleError.set('');
     this.nameError.set('');
 
     if (this.spaceToEdit) {
       this.selectedSchoolId.set(this.spaceToEdit.school?.id || '');
-      this.selectedProgramId.set(this.spaceToEdit.program?.id || '');
       this.name.set(this.spaceToEdit.name || '');
       this.description.set(this.spaceToEdit.description || '');
+      this.selectedScope.set(this.spaceToEdit.scope || 'school');
+      this.selectedProgramId.set(this.spaceToEdit.scopeProgramId || '');
+      this.selectedRoleCode.set(this.spaceToEdit.scopeRoleCode || '');
       this.status.set(this.spaceToEdit.status || 'active');
 
       if (this.spaceToEdit.school?.id) {
@@ -281,13 +420,13 @@ export class SpaceFormComponent implements OnInit, OnChanges {
     } else {
       this.name.set('');
       this.description.set('');
+      this.selectedScope.set(this.initialProgramId ? 'program' : 'school');
+      this.selectedProgramId.set(this.initialProgramId || '');
+      this.selectedRoleCode.set('');
       this.status.set('active');
 
       const sId = this.initialSchoolId || '';
       this.selectedSchoolId.set(sId);
-
-      const pId = this.initialProgramId || '';
-      this.selectedProgramId.set(pId);
 
       if (sId) {
         this.loadPrograms(sId);
@@ -337,15 +476,32 @@ export class SpaceFormComponent implements OnInit, OnChanges {
     this.loadPrograms(schoolId);
   }
 
+  onScopeChange(scope: SpaceScope): void {
+    this.selectedScope.set(scope);
+    // Changer de portée réinitialise la cible
+    this.selectedProgramId.set('');
+    this.selectedRoleCode.set('');
+    this.scopeError.set('');
+    this.programError.set('');
+    this.roleError.set('');
+  }
+
   onProgramChange(programId: string): void {
     this.selectedProgramId.set(programId);
     this.programError.set('');
   }
 
+  onRoleChange(roleCode: string): void {
+    this.selectedRoleCode.set(roleCode);
+    this.roleError.set('');
+  }
+
   validate(): boolean {
     let isValid = true;
     this.schoolError.set('');
+    this.scopeError.set('');
     this.programError.set('');
+    this.roleError.set('');
     this.nameError.set('');
     this.serverError.set('');
 
@@ -354,15 +510,28 @@ export class SpaceFormComponent implements OnInit, OnChanges {
       isValid = false;
     }
 
-    if (!this.selectedProgramId()) {
-      this.programError.set(this.i18n.spaceForm.errors.programRequired);
-      isValid = false;
-    }
-
     const trimmedName = this.name().trim();
     if (!trimmedName || trimmedName.length < 2 || trimmedName.length > 150) {
       this.nameError.set(this.i18n.spaceForm.errors.nameRequired);
       isValid = false;
+    }
+
+    if (!this.isEditing) {
+      const scope = this.selectedScope();
+      if (!scope) {
+        this.scopeError.set(this.i18n.spaceForm.errors.scopeRequired);
+        isValid = false;
+      } else if (scope === 'program') {
+        if (!this.selectedProgramId()) {
+          this.programError.set(this.i18n.spaceForm.errors.programRequired);
+          isValid = false;
+        }
+      } else if (scope === 'role') {
+        if (!this.selectedRoleCode()) {
+          this.roleError.set(this.i18n.spaceForm.errors.roleRequired);
+          isValid = false;
+        }
+      }
     }
 
     return isValid;
@@ -395,11 +564,13 @@ export class SpaceFormComponent implements OnInit, OnChanges {
           },
         });
     } else {
-      // Création : corps strict sans type ni programId
       this.api
-        .createSpace(this.selectedProgramId(), {
+        .createSpace(this.selectedSchoolId(), {
           name: this.name().trim(),
           description: this.description().trim() || undefined,
+          scope: this.selectedScope(),
+          programId: this.selectedScope() === 'program' ? this.selectedProgramId() : undefined,
+          roleCode: this.selectedScope() === 'role' ? this.selectedRoleCode() : undefined,
         })
         .subscribe({
           next: (created) => {
@@ -438,4 +609,3 @@ export class SpaceFormComponent implements OnInit, OnChanges {
     this.formClosed.emit();
   }
 }
-

@@ -37,10 +37,11 @@ describe('SpaceFormComponent', () => {
           id: 'sp-1',
           name: 'Graphes et algorithmes',
           description: null,
-          type: 'institutional',
+          scope: 'program',
+          scopeProgramId: 'prog-1',
+          scopeProgram: { id: 'prog-1', name: 'ISI' },
           status: 'active',
           school: { id: 'sch-1', name: 'Institut Saint Jean' },
-          program: { id: 'prog-1', name: 'ISI' },
           createdAt: '2026-01-01',
           updatedAt: '2026-01-01',
         } as Space),
@@ -81,105 +82,84 @@ describe('SpaceFormComponent', () => {
     expect(component.schools().length).toBe(1);
   });
 
-  it('devrait charger et afficher les filières dans le select filière quand une école est choisie', () => {
+  it('le champ filière n apparaît qu avec la portée Filière', () => {
     component.isOpen = true;
-    fixture.detectChanges();
-
     component.onSchoolChange('sch-1');
+    component.onScopeChange('school');
     fixture.detectChanges();
-
-    expect(apiSpy.getSchoolPrograms).toHaveBeenCalledWith('sch-1');
-    expect(component.programs().length).toBe(3);
 
     const compiled = fixture.nativeElement as HTMLElement;
-    const selects = compiled.querySelectorAll('select');
-    expect(selects.length).toBeGreaterThanOrEqual(2);
-    const programSelect = selects[1];
-    const options = Array.from(programSelect.querySelectorAll('option')).map(
-      (opt) => opt.textContent?.trim(),
-    );
-    expect(options).toContain('Gestion');
-    expect(options).toContain('ISI');
-    expect(options).toContain('SRT');
+    expect(compiled.querySelector('select[name="programId"]')).toBeNull();
+
+    component.onScopeChange('program');
+    fixture.detectChanges();
+    expect(compiled.querySelector('select[name="programId"]')).not.toBeNull();
   });
 
-  it('devrait refuser la soumission si l école ou la filière sont absentes', () => {
+  it('le champ rôle n apparaît qu avec la portée Rôle', () => {
     component.isOpen = true;
-    component.name.set('Mon Espace');
+    component.onSchoolChange('sch-1');
+    component.onScopeChange('school');
+    fixture.detectChanges();
 
-    component.onSubmit();
+    const compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('select[name="roleCode"]')).toBeNull();
 
-    expect(component.schoolError()).toBeTruthy();
-    expect(component.programError()).toBeTruthy();
-    expect(apiSpy.createSpace).not.toHaveBeenCalled();
+    component.onScopeChange('role');
+    fixture.detectChanges();
+    expect(compiled.querySelector('select[name="roleCode"]')).not.toBeNull();
   });
 
-  it('devrait refuser la soumission si le nom a moins de 2 caractères', () => {
+  it('aucun champ supplémentaire pour les portées École et Individuel', () => {
     component.isOpen = true;
-    component.selectedSchoolId.set('sch-1');
-    component.selectedProgramId.set('prog-1');
-    component.name.set('A');
+    component.onSchoolChange('sch-1');
 
-    component.onSubmit();
+    component.onScopeChange('school');
+    fixture.detectChanges();
+    let compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('select[name="programId"]')).toBeNull();
+    expect(compiled.querySelector('select[name="roleCode"]')).toBeNull();
 
-    expect(component.nameError()).toBeTruthy();
-    expect(apiSpy.createSpace).not.toHaveBeenCalled();
+    component.onScopeChange('individual');
+    fixture.detectChanges();
+    compiled = fixture.nativeElement as HTMLElement;
+    expect(compiled.querySelector('select[name="programId"]')).toBeNull();
+    expect(compiled.querySelector('select[name="roleCode"]')).toBeNull();
   });
 
-  it('devrait envoyer le corps strict sans type ni programId à la création', () => {
+  it('changer de portée réinitialise la cible', () => {
     component.isOpen = true;
-    component.selectedSchoolId.set('sch-1');
-    component.selectedProgramId.set('prog-1');
-    component.name.set('Graphes et algorithmes');
-    component.description.set('Algo');
+    component.onScopeChange('program');
+    component.onProgramChange('prog-1');
+    expect(component.selectedProgramId()).toBe('prog-1');
 
-    component.onSubmit();
+    component.onScopeChange('role');
+    expect(component.selectedProgramId()).toBe('');
+    expect(component.selectedRoleCode()).toBe('');
 
-    expect(apiSpy.createSpace).toHaveBeenCalledWith('prog-1', {
-      name: 'Graphes et algorithmes',
-      description: 'Algo',
-    });
-    // Vérifier l'absence de type et programId dans l'argument envoyé
-    const payload = apiSpy.createSpace.mock.calls[0][1];
-    expect(payload.type).toBeUndefined();
-    expect(payload.programId).toBeUndefined();
-    expect(toastSpy.success).toHaveBeenCalled();
+    component.onRoleChange('staff');
+    expect(component.selectedRoleCode()).toBe('staff');
+
+    component.onScopeChange('school');
+    expect(component.selectedRoleCode()).toBe('');
   });
 
-  it('devrait afficher l erreur 409 sous le champ Nom', () => {
+  it('affiche le message 409 sous le champ Nom en cas de conflit', () => {
     apiSpy.createSpace.mockReturnValueOnce(
       throwError(() => ({
         status: 409,
-        error: { message: 'A space with name already exists' },
+        error: { message: 'A space with name already exists in this school' },
       })),
     );
 
     component.isOpen = true;
     component.selectedSchoolId.set('sch-1');
-    component.selectedProgramId.set('prog-1');
     component.name.set('Graphes et algorithmes');
+    component.selectedScope.set('school');
 
     component.onSubmit();
+    fixture.detectChanges();
 
-    expect(component.nameError()).toBe(component.i18n.spaceForm.errors.conflictName);
-  });
-
-  it('devrait afficher l erreur 400 dans le bandeau de la fenêtre', () => {
-    apiSpy.createSpace.mockReturnValueOnce(
-      throwError(() => ({
-        status: 400,
-        error: { message: 'Erreur de validation serveur' },
-      })),
-    );
-
-    component.isOpen = true;
-    component.selectedSchoolId.set('sch-1');
-    component.selectedProgramId.set('prog-1');
-    component.name.set('Graphes et algorithmes');
-
-    component.onSubmit();
-
-    expect(component.serverError()).toBe('Erreur de validation serveur');
+    expect(component.nameError()).toBe('Un espace porte déjà ce nom dans cette école.');
   });
 });
-
