@@ -43,6 +43,7 @@ export class UsersService {
       RoleCode.PLATFORM_ADMIN,
       RoleCode.SCHOOL_ADMIN,
       RoleCode.STAFF,
+      RoleCode.ADMIN_STAFF,
       RoleCode.STUDENT,
       RoleCode.GUEST,
     ];
@@ -255,6 +256,7 @@ export class UsersService {
           scope = 'all';
           break;
         case RoleCode.SCHOOL_ADMIN:
+        case RoleCode.ADMIN_STAFF:
           scope = 'school';
           break;
         case RoleCode.STAFF:

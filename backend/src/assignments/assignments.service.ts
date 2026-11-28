@@ -217,6 +217,16 @@ export class AssignmentsService {
         await this.ensureSchoolExists(schoolId!);
         break;
 
+      case RoleCode.ADMIN_STAFF:
+        if (!hasSchool) {
+          throw new BadRequestException('admin_staff requires schoolId');
+        }
+        if (hasProgram) {
+          throw new BadRequestException('admin_staff must not have programId');
+        }
+        await this.ensureSchoolExists(schoolId!);
+        break;
+
       case RoleCode.STAFF:
       case RoleCode.STUDENT:
         if (!hasSchool || !hasProgram) {
