@@ -196,13 +196,21 @@ describe('SpacesService', () => {
       });
       expect(resProg.scope).toBe(SpaceScope.PROGRAM);
 
-      // 3. Role scope
+      // 3. Role scope (staff et admin_staff)
       const resRole = await service.create('sch-1', {
         name: 'Espace Enseignants',
         scope: SpaceScope.ROLE,
         roleCode: 'staff',
       });
       expect(resRole.scope).toBe(SpaceScope.ROLE);
+
+      const resAdminStaff = await service.create('sch-1', {
+        name: 'Personnel administratif',
+        scope: SpaceScope.ROLE,
+        roleCode: 'admin_staff',
+      });
+      expect(resAdminStaff.scope).toBe(SpaceScope.ROLE);
+      expect(resAdminStaff.scopeRoleCode).toBe('admin_staff');
 
       // 4. Individual scope
       const resIndiv = await service.create('sch-1', {

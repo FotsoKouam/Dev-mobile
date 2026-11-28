@@ -138,7 +138,7 @@ export class SpacesService {
       if (dto.programId) {
         throw new BadRequestException('programId must be null when scope is "role"');
       }
-      const validRoleCodes = ['platform_admin', 'school_admin', 'staff', 'student', 'guest'];
+      const validRoleCodes = ['platform_admin', 'school_admin', 'staff', 'admin_staff', 'student', 'guest'];
       if (!validRoleCodes.includes(dto.roleCode.trim())) {
         throw new BadRequestException(`Invalid roleCode "${dto.roleCode}"`);
       }
@@ -228,7 +228,7 @@ export class SpacesService {
         if (!targetRoleCode || targetRoleCode.trim() === '') {
           throw new BadRequestException('roleCode is required when scope is "role"');
         }
-        const validRoleCodes = ['platform_admin', 'school_admin', 'staff', 'student', 'guest'];
+        const validRoleCodes = ['platform_admin', 'school_admin', 'staff', 'admin_staff', 'student', 'guest'];
         if (!validRoleCodes.includes(targetRoleCode.trim())) {
           throw new BadRequestException(`Invalid roleCode "${targetRoleCode}"`);
         }

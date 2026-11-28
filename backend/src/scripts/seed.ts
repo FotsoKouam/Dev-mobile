@@ -88,7 +88,7 @@ const seedData: SeedSchool[] = [
 ];
 
 interface SeedRole {
-  code: 'platform_admin' | 'school_admin' | 'staff' | 'student' | 'guest';
+  code: 'platform_admin' | 'school_admin' | 'staff' | 'admin_staff' | 'student' | 'guest';
   name: string;
   description: string;
   permissions: string[];
@@ -130,6 +130,12 @@ const rolesData: SeedRole[] = [
     code: 'staff',
     name: 'Personnel',
     description: 'Ajout de documents aux espaces institutionnels de sa filière',
+    permissions: ['add_document', 'replace_or_delete_document'],
+  },
+  {
+    code: 'admin_staff',
+    name: 'Personnel administratif',
+    description: 'Gestion documentaire et accès aux espaces administratifs',
     permissions: ['add_document', 'replace_or_delete_document'],
   },
   {
@@ -458,7 +464,7 @@ async function seed() {
         schoolName: 'Institut Universitaire Saint Jean',
         name: 'Personnel administratif',
         scope: 'role',
-        roleCode: 'staff',
+        roleCode: 'admin_staff',
       },
       {
         schoolName: 'Institut Universitaire Saint Jean',
@@ -534,6 +540,30 @@ async function seed() {
         [parentsSpaceId, guestUserId],
       );
       console.log(`Membre de test : Sophie Moukengue ajoutée à l'espace 'Parents / invités'.`);
+    }
+
+    // 8. Affectation de test admin_staff (Paul Essiane)
+    const adminStaffRoleRes = await client.query<{ id: string }>(
+      `SELECT id FROM roles WHERE code = 'admin_staff'`,
+    );
+    const paulUserRes = await client.query<{ id: string }>(
+      `SELECT id FROM users WHERE email = 'paul.essiane@example.com'`,
+    );
+    const isjSchoolRes = await client.query<{ id: string }>(
+      `SELECT id FROM schools WHERE name = 'Institut Universitaire Saint Jean'`,
+    );
+
+    if (adminStaffRoleRes.rows.length > 0 && paulUserRes.rows.length > 0 && isjSchoolRes.rows.length > 0) {
+      await client.query(
+        `INSERT INTO assignments (user_id, role_id, school_id, program_id, status)
+         VALUES ($1, $2, $3, NULL, 'active')
+         ON CONFLICT ("user_id", "role_id",
+           COALESCE("school_id", '00000000-0000-0000-0000-000000000000'::uuid),
+           COALESCE("program_id", '00000000-0000-0000-0000-000000000000'::uuid)
+         ) DO UPDATE SET status = EXCLUDED.status;`,
+        [paulUserRes.rows[0].id, adminStaffRoleRes.rows[0].id, isjSchoolRes.rows[0].id],
+      );
+      console.log(`Affectation de test : Paul Essiane affecté au rôle admin_staff pour Institut Universitaire Saint Jean.`);
     }
 
     console.log('Seed terminé avec succès !');

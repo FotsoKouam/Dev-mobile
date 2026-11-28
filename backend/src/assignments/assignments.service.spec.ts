@@ -130,6 +130,28 @@ describe('AssignmentsService', () => {
       });
     });
 
+    describe('admin_staff', () => {
+      it('devrait accepter un admin_staff avec école et sans filière', async () => {
+        mockSchoolsRepository.findOne.mockResolvedValue({ id: 'school-1' });
+
+        await expect(
+          service.validateAssignmentBusinessRules(RoleCode.ADMIN_STAFF, 'school-1', undefined),
+        ).resolves.toBeUndefined();
+      });
+
+      it('devrait renvoyer 400 si admin_staff n a pas d école', async () => {
+        await expect(
+          service.validateAssignmentBusinessRules(RoleCode.ADMIN_STAFF, undefined, undefined),
+        ).rejects.toThrow(BadRequestException);
+      });
+
+      it('devrait renvoyer 400 si admin_staff a une filière', async () => {
+        await expect(
+          service.validateAssignmentBusinessRules(RoleCode.ADMIN_STAFF, 'school-1', 'program-1'),
+        ).rejects.toThrow(BadRequestException);
+      });
+    });
+
     describe('staff & student', () => {
       it('devrait accepter staff avec école et filière appartenant à l école', async () => {
         mockSchoolsRepository.findOne.mockResolvedValue({ id: 'school-1' });
